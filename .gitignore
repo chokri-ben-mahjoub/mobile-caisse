@@ -49,3 +49,4 @@ app.*.map.json
 
 # Kotlin build cache
 /android/.kotlin/
+promo/audio.wav
