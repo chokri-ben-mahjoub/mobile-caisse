@@ -20,7 +20,9 @@ class ParsedProducts {
   final int skipped;
   final bool hasCost;
   final bool hasStock;
-  const ParsedProducts(this.items, this.skipped, {this.hasCost = false, this.hasStock = false});
+  final bool hasUnit;
+  const ParsedProducts(this.items, this.skipped,
+      {this.hasCost = false, this.hasStock = false, this.hasUnit = false});
 }
 
 class BackupService {
@@ -63,12 +65,12 @@ class BackupService {
 
   Future<void> shareSalesCsv() async {
     final rows = await _db.salesFlat();
-    final b = StringBuffer('﻿Ticket;Date;Heure;Paiement;Code-barres;Article;Prix;Quantité;Total ligne;Prix d\'achat;Bénéfice ligne;Remise ticket;Total ticket;Montant reçu;Vendeur\n');
+    final b = StringBuffer('﻿Ticket;Date;Heure;Paiement;Code-barres;Article;Prix;Quantité;Total ligne;Prix d\'achat;Bénéfice ligne;Remise ticket;Total ticket;Montant reçu;Vendeur;Type;Ticket origine;Unité\n');
     for (final r in rows) {
       final d = DateTime.parse(r['date'] as String);
       String t(int v) => v.toString().padLeft(2, '0');
       final price = (r['price'] as num).toDouble();
-      final qty = r['qty'] as int;
+      final qty = (r['qty'] as num).toDouble();
       final cost = (r['cost'] as num).toDouble();
       b.writeln([
         r['id'],
@@ -78,14 +80,17 @@ class BackupService {
         esc(r['barcode']),
         esc(r['name']),
         dec(price),
-        qty,
-        dec(price * qty),
+        fmtQty(qty),
+        dec(round3(price * qty)),
         cost > 0 ? dec(cost) : '',
-        cost > 0 ? dec((price - cost) * qty) : '',
+        cost > 0 ? dec(round3((price - cost) * qty)) : '',
         (r['discount'] as num) > 0 ? dec(r['discount'] as num) : '',
         dec(r['total'] as num),
         dec(r['received'] as num?),
         esc(r['seller']),
+        r['kind'] == 'refund' ? 'Retour' : 'Vente',
+        r['ref_sale_id'] ?? '',
+        esc(r['unit']),
       ].join(';'));
     }
     final f = await _tmp('ventes_${_stamp()}.csv');
@@ -94,10 +99,10 @@ class BackupService {
   }
 
   Future<void> shareProductsCsv() async {
-    final b = StringBuffer('﻿Code-barres;Nom;Prix;Prix d\'achat;Stock;Seuil alerte\n');
+    final b = StringBuffer('﻿Code-barres;Nom;Prix;Prix d\'achat;Stock;Seuil alerte;Unité\n');
     for (final p in await _db.products()) {
       b.writeln('${esc(p.barcode)};${esc(p.name)};${dec(p.price)};${p.cost > 0 ? dec(p.cost) : ''};'
-          '${p.stock ?? ''};${p.tracked ? p.minStock : ''}');
+          '${p.stock == null ? '' : fmtQty(p.stock!)};${p.tracked ? p.minStock : ''};${p.unit}');
     }
     final f = await _tmp('produits_${_stamp()}.csv');
     await f.writeAsString(b.toString());
@@ -115,7 +120,8 @@ class BackupService {
     if (picked == null || picked.path == null) return null;
     final text = await File(picked.path!).readAsString();
     final parsed = parseProducts(text);
-    await _db.bulkUpsertProducts(parsed.items, updateCost: parsed.hasCost, updateStock: parsed.hasStock);
+    await _db.bulkUpsertProducts(parsed.items,
+        updateCost: parsed.hasCost, updateStock: parsed.hasStock, updateUnit: parsed.hasUnit);
     return ImportResult(parsed.items.length, parsed.skipped);
   }
 
@@ -127,7 +133,7 @@ class BackupService {
     final sep = [';', '\t', ','].reduce((a, b) => _count(firstLine, a) >= _count(firstLine, b) ? a : b);
     final rows = _parseCsv(src, sep).where((r) => r.any((c) => c.trim().isNotEmpty)).toList();
 
-    var ci = 0, ni = 1, pi = 2, ki = -1, si = -1, mi = -1;
+    var ci = 0, ni = 1, pi = 2, ki = -1, si = -1, mi = -1, ui = -1;
     if (rows.isNotEmpty) {
       final head = rows.first.map((c) => c.trim().toLowerCase()).toList();
       final price = head.indexWhere((c) => (c.contains('prix') || c.contains('price')) && !c.contains('achat') && !c.contains('cost'));
@@ -140,6 +146,7 @@ class BackupService {
         ki = head.indexWhere((c) => c.contains('achat') || c.contains('cost') || c.contains('coût') || c.contains('cout'));
         mi = head.indexWhere((c) => c.contains('seuil') || c.contains('alerte') || c.contains('min'));
         si = head.indexWhere((c) => c.contains('stock') && !c.contains('seuil') && !c.contains('alerte'));
+        ui = head.indexWhere((c) => c.contains('unit'));
         rows.removeAt(0);
       }
     }
@@ -154,8 +161,9 @@ class BackupService {
         continue;
       }
       final cost = ki >= 0 ? double.tryParse(at(ki).replaceAll(',', '.')) : null;
-      final stock = si >= 0 ? int.tryParse(at(si)) : null;
+      final stock = si >= 0 ? double.tryParse(at(si).replaceAll(',', '.')) : null;
       final minStock = mi >= 0 ? int.tryParse(at(mi)) : null;
+      final unit = ui >= 0 && at(ui).toLowerCase().startsWith('kg') ? 'kg' : '';
       byCode[at(ci)] = Product(
         barcode: at(ci),
         name: at(ni),
@@ -163,9 +171,10 @@ class BackupService {
         cost: cost != null && cost > 0 ? cost : 0,
         stock: stock,
         minStock: stock == null ? 0 : (minStock ?? 0),
+        unit: unit,
       );
     }
-    return ParsedProducts(byCode.values.toList(), skipped, hasCost: ki >= 0, hasStock: si >= 0);
+    return ParsedProducts(byCode.values.toList(), skipped, hasCost: ki >= 0, hasStock: si >= 0, hasUnit: ui >= 0);
   }
 
   static int _count(String s, String ch) => ch.allMatches(s).length;

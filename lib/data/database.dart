@@ -41,7 +41,7 @@ class AppDatabase {
 
   static Future<Database> _openAt(String path) => openDatabase(
       path,
-      version: 5,
+      version: 6,
       onConfigure: (db) => db.execute('PRAGMA foreign_keys = ON'),
       onCreate: _create,
       onUpgrade: (db, oldV, _) async {
@@ -63,6 +63,17 @@ class AppDatabase {
           await db.execute("ALTER TABLE sales ADD COLUMN user_name TEXT");
           await _createUsers(db);
         }
+        if (oldV < 6) {
+          await db.execute("ALTER TABLE products ADD COLUMN unit TEXT NOT NULL DEFAULT ''");
+          await db.execute('ALTER TABLE products ADD COLUMN favorite INTEGER NOT NULL DEFAULT 0');
+          await db.execute("ALTER TABLE sale_lines ADD COLUMN unit TEXT NOT NULL DEFAULT ''");
+          await db.execute("ALTER TABLE sales ADD COLUMN kind TEXT NOT NULL DEFAULT 'sale'");
+          await db.execute('ALTER TABLE sales ADD COLUMN ref_sale_id INTEGER');
+          await db.execute('ALTER TABLE sales ADD COLUMN reason TEXT');
+          await _createClosings(db);
+          // Managers get the new rights (returns, cash closing) by default.
+          await db.execute("UPDATE users SET perms = perms | 96 WHERE role = 'manager'");
+        }
       },
     );
 
@@ -74,7 +85,7 @@ class AppDatabase {
   /// Inserts or updates products. Existing purchase price / stock are kept
   /// unless the import file carried those columns ([updateCost], [updateStock]).
   Future<int> bulkUpsertProducts(List<Product> items,
-      {bool updateCost = true, bool updateStock = true}) async {
+      {bool updateCost = true, bool updateStock = true, bool updateUnit = false}) async {
     await _db.transaction((txn) async {
       for (final it in items) {
         final old = await txn.query('products', where: 'barcode = ?', whereArgs: [it.barcode], limit: 1);
@@ -91,6 +102,8 @@ class AppDatabase {
               cost: updateCost ? it.cost : cur.cost,
               stock: updateStock ? it.stock : cur.stock,
               minStock: updateStock ? it.minStock : cur.minStock,
+              unit: updateUnit ? it.unit : cur.unit,
+              favorite: cur.favorite,
             ).toMap(),
             where: 'barcode = ?',
             whereArgs: [it.barcode],
@@ -108,26 +121,37 @@ class AppDatabase {
   /// Every sale line with its sale header, oldest first (for CSV export).
   Future<List<Map<String, Object?>>> salesFlat() => _db.rawQuery(
       'SELECT s.id AS id, s.date AS date, s.method AS method, s.total AS total, s.received AS received, s.discount AS discount, s.user_name AS seller, '
-      'l.barcode AS barcode, l.name AS name, l.price AS price, l.qty AS qty, l.cost AS cost '
+      's.kind AS kind, s.ref_sale_id AS ref_sale_id, '
+      'l.barcode AS barcode, l.name AS name, l.price AS price, l.qty AS qty, l.cost AS cost, l.unit AS unit '
       'FROM sales s JOIN sale_lines l ON l.sale_id = s.id ORDER BY s.date, s.id, l.id');
 
   static Future<void> _create(Database db, int _) async {
     await db.execute('CREATE TABLE products('
         'barcode TEXT PRIMARY KEY, name TEXT NOT NULL, price REAL NOT NULL, '
-        'cost REAL NOT NULL DEFAULT 0, stock INTEGER, min_stock INTEGER NOT NULL DEFAULT 0, '
-        'is_demo INTEGER NOT NULL DEFAULT 0)');
+        'cost REAL NOT NULL DEFAULT 0, stock REAL, min_stock INTEGER NOT NULL DEFAULT 0, '
+        "is_demo INTEGER NOT NULL DEFAULT 0, unit TEXT NOT NULL DEFAULT '', favorite INTEGER NOT NULL DEFAULT 0)");
     await db.execute('CREATE TABLE sales('
         'id INTEGER PRIMARY KEY AUTOINCREMENT, date TEXT NOT NULL, '
         'total REAL NOT NULL, method TEXT NOT NULL, received REAL, discount REAL NOT NULL DEFAULT 0, '
-        'is_demo INTEGER NOT NULL DEFAULT 0, user_name TEXT)');
+        "is_demo INTEGER NOT NULL DEFAULT 0, user_name TEXT, "
+        "kind TEXT NOT NULL DEFAULT 'sale', ref_sale_id INTEGER, reason TEXT)");
     await db.execute('CREATE TABLE sale_lines('
         'id INTEGER PRIMARY KEY AUTOINCREMENT, '
         'sale_id INTEGER NOT NULL REFERENCES sales(id) ON DELETE CASCADE, '
-        'barcode TEXT NOT NULL, name TEXT NOT NULL, price REAL NOT NULL, qty INTEGER NOT NULL, cost REAL NOT NULL DEFAULT 0)');
+        'barcode TEXT NOT NULL, name TEXT NOT NULL, price REAL NOT NULL, qty REAL NOT NULL, cost REAL NOT NULL DEFAULT 0, '
+        "unit TEXT NOT NULL DEFAULT '')");
     await db.execute('CREATE INDEX idx_sales_date ON sales(date)');
     await _createHeld(db);
     await _createUsers(db);
+    await _createClosings(db);
   }
+
+  static Future<void> _createClosings(Database db) => db.execute('CREATE TABLE cash_closings('
+      'id INTEGER PRIMARY KEY AUTOINCREMENT, closed_at TEXT NOT NULL, period_start TEXT NOT NULL, '
+      'user_name TEXT, opening_float REAL NOT NULL, expected_cash REAL NOT NULL, counted_cash REAL NOT NULL, '
+      'float_left REAL NOT NULL, sales_count INTEGER NOT NULL, refunds_count INTEGER NOT NULL, '
+      'gross REAL NOT NULL, discounts REAL NOT NULL, refunds REAL NOT NULL, net REAL NOT NULL, '
+      'cash REAL NOT NULL, qr REAL NOT NULL, profit REAL NOT NULL, note TEXT)');
 
   static Future<void> _createUsers(Database db) => db.execute('CREATE TABLE users('
       'id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL COLLATE NOCASE, '
@@ -268,7 +292,7 @@ class AppDatabase {
       _db.insert('products', pr.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
 
   /// Sets the stock of one product (and starts tracking it), keeping every other column.
-  Future<void> setStock(String barcode, int value) => _db.update(
+  Future<void> setStock(String barcode, double value) => _db.update(
       'products', {'stock': value < 0 ? 0 : value},
       where: 'barcode = ?', whereArgs: [barcode]);
 
@@ -285,10 +309,16 @@ class AppDatabase {
         'received': sale.received,
         'discount': sale.discount,
         'user_name': sale.seller,
+        'kind': sale.kind.name,
+        'ref_sale_id': sale.refSaleId,
+        'reason': sale.reason,
       });
       for (final l in sale.lines) {
         await txn.insert('sale_lines', l.toMap(id));
-        // Only tracked products (stock IS NOT NULL) are decremented; never below 0.
+        // Only tracked products (stock IS NOT NULL) change. A sale (positive qty)
+        // takes stock out, never below 0; a return (negative qty) puts it back,
+        // unless the items are not to be restocked (damaged goods).
+        if (sale.isRefund && !sale.restock) continue;
         await txn.rawUpdate(
             'UPDATE products SET stock = MAX(stock - ?, 0) WHERE barcode = ? AND stock IS NOT NULL',
             [l.qty, l.barcode]);
@@ -298,10 +328,14 @@ class AppDatabase {
     return sale.withId(id);
   }
 
-  /// Sales of the given day (local time), newest first.
-  Future<List<Sale>> salesOfDay(DateTime day) async {
+  /// Sales and returns of the given day (local time), newest first.
+  Future<List<Sale>> salesOfDay(DateTime day) {
     final start = DateTime(day.year, day.month, day.day);
-    final end = start.add(const Duration(days: 1));
+    return salesBetween(start, start.add(const Duration(days: 1)));
+  }
+
+  /// Sales and returns with `start <= date < end`, newest first.
+  Future<List<Sale>> salesBetween(DateTime start, DateTime end) async {
     final rows = await _db.query('sales',
         where: 'date >= ? AND date < ?',
         whereArgs: [start.toIso8601String(), end.toIso8601String()],
@@ -318,9 +352,36 @@ class AppDatabase {
         received: (r['received'] as num?)?.toDouble(),
         discount: (r['discount'] as num?)?.toDouble() ?? 0,
         seller: r['user_name'] as String?,
+        kind: SaleKind.values.byName((r['kind'] as String?) ?? 'sale'),
+        refSaleId: r['ref_sale_id'] as int?,
+        reason: r['reason'] as String?,
         lines: lines.map(SaleLine.fromMap).toList(),
       ));
     }
     return sales;
+  }
+
+  /// Quantity already returned for each article of sale [saleId]
+  /// (barcode -> positive quantity).
+  Future<Map<String, double>> returnedQty(int saleId) async {
+    final rows = await _db.rawQuery(
+        'SELECT l.barcode AS barcode, SUM(l.qty) AS qty FROM sales s '
+        'JOIN sale_lines l ON l.sale_id = s.id '
+        "WHERE s.ref_sale_id = ? AND s.kind = 'refund' GROUP BY l.barcode",
+        [saleId]);
+    return {for (final r in rows) r['barcode'] as String: -(r['qty'] as num).toDouble()};
+  }
+
+  // ---- cash closings ----
+  Future<int> insertClosing(CashClosing c) => _db.insert('cash_closings', c.toMap());
+
+  Future<List<CashClosing>> closings({int limit = 60}) async =>
+      (await _db.query('cash_closings', orderBy: 'closed_at DESC', limit: limit))
+          .map(CashClosing.fromMap)
+          .toList();
+
+  Future<CashClosing?> lastClosing() async {
+    final rows = await _db.query('cash_closings', orderBy: 'closed_at DESC', limit: 1);
+    return rows.isEmpty ? null : CashClosing.fromMap(rows.first);
   }
 }

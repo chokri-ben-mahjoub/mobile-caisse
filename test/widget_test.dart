@@ -11,6 +11,168 @@ import 'package:mob_caisse/logic/auth_provider.dart';
 import 'package:mob_caisse/ui/pin_lock.dart';
 
 void main() {
+  test('quantities: whole numbers, decimals and units format like a till', () {
+    expect(fmtQty(3), '3');
+    expect(fmtQty(0.35), '0,35');
+    expect(fmtQty(1.5), '1,5');
+    expect(fmtQty(2.0), '2');
+    expect(fmtQty(0.35, unit: 'kg'), '0,35 kg');
+    expect(fmtQty(1.250), '1,25');
+  });
+
+  test('weighed line: price per kg times weight, rounded to the millime', () {
+    const l = SaleLine(barcode: 'T', name: 'Tomates', price: 1.8, qty: 0.35, unit: 'kg');
+    expect(l.total, 0.63);
+    expect(l.byWeight, true);
+    expect(l.articles, 1); // a weighed item counts once
+    expect(const SaleLine(barcode: 'F', name: 'Fromage', price: 22, qty: 0.125, unit: 'kg').total, 2.75);
+    expect(const SaleLine(barcode: 'E', name: 'Eau', price: 0.8, qty: 3).articles, 3);
+    final back = SaleLine.fromMap({...l.toMap(1), 'qty': 0.35});
+    expect(back.unit, 'kg');
+    expect(back.qty, 0.35);
+  });
+
+  group('returns', () {
+    // 2 x 5.000 + 1 x 10.000 = 20.000, 10 % off -> paid 18.000
+    final original = Sale(
+      id: 42,
+      date: DateTime(2026, 10, 27, 10),
+      total: 18,
+      discount: 2,
+      method: PayMethod.cash,
+      lines: const [
+        SaleLine(barcode: 'A', name: 'A', price: 5, qty: 2, cost: 3),
+        SaleLine(barcode: 'B', name: 'B', price: 10, qty: 1, cost: 6),
+      ],
+    );
+
+    test('partial return is refunded pro-rata of the discount', () {
+      final r = Sale.refundOf(original, {'A': 1}, date: DateTime(2026, 10, 27, 11), seller: 'Ali', reason: 'Erreur');
+      expect(r.isRefund, true);
+      expect(r.refSaleId, 42);
+      expect(r.lines.single.qty, -1);
+      expect(r.total, -4.5); // 5.000 x 0.9
+      expect(r.discount, -0.5);
+      expect(r.subtotal, -5);
+      expect(r.method, PayMethod.cash);
+      expect(r.profit, closeTo(-(5 - 3) + 0.5, 0.0001)); // gives back the margin, less the discount share
+    });
+
+    test('returning everything cancels the sale exactly', () {
+      final r = Sale.refundOf(original, {'A': 2, 'B': 1}, date: DateTime(2026, 10, 27, 11));
+      expect(r.total, -18);
+      expect(r.discount, -2);
+      expect(r.profit, closeTo(-original.profit, 0.0001));
+    });
+
+    test('what is already returned cannot be returned twice', () {
+      expect(Sale.returnable(original, {'A': 1}), {'A': 1, 'B': 1});
+      expect(Sale.returnable(original, {'A': 2, 'B': 1}), {'A': 0, 'B': 0});
+    });
+
+    test('weighed items can be returned by weight', () {
+      final kg = Sale(
+        id: 7,
+        date: DateTime(2026),
+        total: 3.6,
+        method: PayMethod.qr,
+        lines: const [SaleLine(barcode: 'T', name: 'Tomates', price: 1.8, qty: 2, unit: 'kg')],
+      );
+      final r = Sale.refundOf(kg, {'T': 0.5}, date: DateTime(2026));
+      expect(r.lines.single.qty, -0.5);
+      expect(r.total, -0.9);
+      expect(Sale.returnable(kg, {'T': 0.5})['T'], 1.5);
+    });
+  });
+
+  group('cash closing', () {
+    final sales = [
+      Sale(date: DateTime(2026, 10, 27, 9), total: 20, method: PayMethod.cash, seller: 'Ali', lines: const [
+        SaleLine(barcode: 'A', name: 'A', price: 10, qty: 2, cost: 6),
+      ]),
+      Sale(date: DateTime(2026, 10, 27, 10), total: 9, discount: 1, method: PayMethod.qr, seller: 'Sana', lines: const [
+        SaleLine(barcode: 'B', name: 'B', price: 10, qty: 1, cost: 6),
+      ]),
+      Sale(
+        date: DateTime(2026, 10, 27, 11),
+        total: -10,
+        method: PayMethod.cash,
+        seller: 'Ali',
+        kind: SaleKind.refund,
+        lines: const [SaleLine(barcode: 'A', name: 'A', price: 10, qty: -1, cost: 6)],
+      ),
+    ];
+
+    test('summary nets returns out of sales, by payment method', () {
+      final s = ClosingSummary.from(sales);
+      expect(s.salesCount, 2);
+      expect(s.refundsCount, 1);
+      expect(s.gross, 30); // before discount
+      expect(s.discounts, 1);
+      expect(s.refunds, 10);
+      expect(s.net, 19);
+      expect(s.cash, 10); // 20 - 10
+      expect(s.qr, 9);
+      expect(s.bySeller, {'Ali': 10, 'Sana': 9});
+      // sale 1: (10-6)*2 = 8; sale 2: (10-6) - 1 discount = 3; return: (10-6)*-1 = -4
+      expect(s.profit, closeTo(7, 0.0001));
+    });
+
+    test('difference is counted minus expected', () {
+      CashClosing c(double counted) => CashClosing(
+            closedAt: DateTime(2026, 10, 27, 20),
+            periodStart: DateTime(2026, 10, 27),
+            openingFloat: 50,
+            expectedCash: 60,
+            countedCash: counted,
+            floatLeft: 50,
+            salesCount: 2,
+            refundsCount: 1,
+            gross: 30,
+            discounts: 1,
+            refunds: 10,
+            net: 19,
+            cash: 10,
+            qr: 9,
+            profit: 6,
+          );
+      expect(c(58.5).difference, -1.5); // missing
+      expect(c(61).difference, 1); // too much
+      expect(c(60).difference, 0);
+      final back = CashClosing.fromMap({...c(58.5).toMap(), 'id': 5});
+      expect(back.id, 5);
+      expect(back.difference, -1.5);
+      expect(back.periodStart, DateTime(2026, 10, 27));
+    });
+  });
+
+  test('managers can return and close the till, cashiers cannot', () {
+    expect(Role.manager.defaultPerms & Perm.refund, isNonZero);
+    expect(Role.manager.defaultPerms & Perm.closing, isNonZero);
+    expect(Role.cashier.defaultPerms & (Perm.refund | Perm.closing), 0);
+    expect(Perm.all, 127);
+    expect(Perm.labels.keys.fold(0, (a, b) => a | b), Perm.all);
+  });
+
+  test('CSV import: unit column marks weighed products', () {
+    const csv = 'Code-barres;Nom;Prix;Unité\n111;Tomates;1,8;kg\n222;Eau;0,8;\n';
+    final r = BackupService.parseProducts(csv);
+    expect(r.hasUnit, true);
+    expect(r.items.firstWhere((p) => p.barcode == '111').byWeight, true);
+    expect(r.items.firstWhere((p) => p.barcode == '222').byWeight, false);
+    expect(BackupService.parseProducts('1;A;2\n').hasUnit, false);
+  });
+
+  test('demo data has weighed products, a favourite and a bread without stock tracking', () {
+    final p = DemoData.products();
+    expect(p.where((x) => x.byWeight).length, greaterThanOrEqualTo(4));
+    expect(p.where((x) => x.favorite).length, greaterThanOrEqualTo(5));
+    final bread = p.firstWhere((x) => x.name == 'Baguette');
+    expect(bread.tracked, false);
+    final sales = DemoData.sales(p, DateTime(2026, 10, 27, 15));
+    expect(sales.any((s) => s.lines.any((l) => l.byWeight && l.qty != l.qty.roundToDouble())), true);
+  });
+
   test('roles and access: owner everything, manager preset, cashier only the Caisse', () {
     const hash = 'x';
     final owner = AppUser(name: 'O', pinHash: hash, role: Role.owner, perms: 0);

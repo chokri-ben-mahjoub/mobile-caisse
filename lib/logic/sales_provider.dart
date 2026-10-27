@@ -10,12 +10,21 @@ class SalesProvider extends ChangeNotifier {
   final AppDatabase _db;
 
   DateTime day = DateTime.now();
+
+  /// Sales and returns of [day], newest first.
   List<Sale> sales = [];
 
-  double get total => sales.fold(0.0, (s, e) => s + e.total);
-  double get profit => sales.fold(0.0, (s, e) => s + e.profit);
-  bool get hasUnknownCost => sales.any((e) => e.hasUnknownCost);
-  double totalFor(PayMethod m) => sales.where((s) => s.method == m).fold(0.0, (s, e) => s + e.total);
+  /// Net of sales minus returns.
+  double get total => round3(sales.fold(0.0, (s, e) => s + e.total));
+  double get profit => round3(sales.fold(0.0, (s, e) => s + e.profit));
+  bool get hasUnknownCost => sales.any((e) => !e.isRefund && e.hasUnknownCost);
+  double totalFor(PayMethod m) => round3(sales.where((s) => s.method == m).fold(0.0, (s, e) => s + e.total));
+
+  int get salesCount => sales.where((s) => !s.isRefund).length;
+  int get refundsCount => sales.where((s) => s.isRefund).length;
+
+  /// Amount given back on returns today (positive).
+  double get refundsTotal => -round3(sales.where((s) => s.isRefund).fold(0.0, (s, e) => s + e.total));
 
   Future<void> load() async {
     sales = await _db.salesOfDay(day);
@@ -38,4 +47,7 @@ class SalesProvider extends ChangeNotifier {
     await load();
     return saved;
   }
+
+  /// Quantity already returned per article of sale [saleId].
+  Future<Map<String, double>> returnedQty(int saleId) => _db.returnedQty(saleId);
 }

@@ -4,10 +4,13 @@ import 'package:provider/provider.dart';
 
 import '../../data/models.dart';
 import '../../data/printer_service.dart';
+import '../../logic/auth_provider.dart';
 import '../../logic/sales_provider.dart';
 import '../../logic/settings_provider.dart';
 import '../theme.dart';
 import '../widgets.dart';
+import 'closing_screen.dart';
+import 'return_screen.dart';
 
 class HistoryScreen extends StatelessWidget {
   const HistoryScreen({super.key});
@@ -16,16 +19,35 @@ class HistoryScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final prov = context.watch<SalesProvider>();
     final s = context.watch<SettingsProvider>().settings;
+    final auth = context.watch<AuthProvider>();
     final dayLabel = DateFormat('dd/MM/yyyy').format(prov.day);
+    final pal = context.pal;
 
     // Day total per seller (only when sales carry a seller name).
     final bySeller = <String, double>{};
     for (final sale in prov.sales) {
-      if (sale.seller != null) bySeller.update(sale.seller!, (v) => v + sale.total, ifAbsent: () => sale.total);
+      if (sale.seller != null) {
+        bySeller.update(sale.seller!, (v) => round3(v + sale.total), ifAbsent: () => sale.total);
+      }
     }
 
+    final subParts = <String>[
+      '${prov.salesCount} vente${prov.salesCount > 1 ? 's' : ''}',
+      if (prov.refundsCount > 0) 'retours −${s.money(prov.refundsTotal)}',
+    ];
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Historique')),
+      appBar: AppBar(
+        title: const Text('Historique'),
+        actions: [
+          if (auth.can(Perm.closing))
+            IconButton(
+              tooltip: 'Clôture de caisse',
+              icon: const Icon(Icons.lock_clock_rounded),
+              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ClosingScreen())),
+            ),
+        ],
+      ),
       body: Column(
         children: [
           Row(
@@ -42,7 +64,7 @@ class HistoryScreen extends StatelessWidget {
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: TotalBanner(label: 'TOTAL DU JOUR', sub: '${prov.sales.length} ventes', amount: s.money(prov.total)),
+            child: TotalBanner(label: 'TOTAL DU JOUR', sub: subParts.join(' · '), amount: s.money(prov.total)),
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
@@ -82,22 +104,29 @@ class HistoryScreen extends StatelessWidget {
             ),
           Expanded(
             child: prov.sales.isEmpty
-                ? Center(child: Text('Aucune vente ce jour', style: TextStyle(color: context.pal.muted)))
+                ? Center(child: Text('Aucune vente ce jour', style: TextStyle(color: pal.muted)))
                 : ListView.separated(
                     padding: const EdgeInsets.fromLTRB(16, 6, 16, 16),
                     itemCount: prov.sales.length,
                     separatorBuilder: (_, _) => const SizedBox(height: 8),
                     itemBuilder: (_, i) {
                       final sale = prov.sales[i];
+                      final refund = sale.isRefund;
                       return Card(
                         child: ListTile(
                           onTap: () => _showSale(context, sale),
-                          title: Text('Ticket ${sale.id} · ${DateFormat('HH:mm').format(sale.date)}',
-                              style: const TextStyle(fontWeight: FontWeight.w700)),
+                          title: Text(
+                            '${refund ? 'Retour' : 'Ticket'} ${sale.id} · ${DateFormat('HH:mm').format(sale.date)}',
+                            style: TextStyle(fontWeight: FontWeight.w700, color: refund ? pal.badFg : null),
+                          ),
                           subtitle: Text(
-                              '${sale.itemCount} article${sale.itemCount > 1 ? 's' : ''} · ${sale.method == PayMethod.cash ? 'Espèces' : 'QR code'}'
-                              '${sale.seller != null ? ' · ${sale.seller}' : ''}'),
-                          trailing: Text(s.money(sale.total), style: const TextStyle(fontWeight: FontWeight.w800)),
+                            '${sale.itemCount} article${sale.itemCount > 1 ? 's' : ''}'
+                            '${refund && sale.refSaleId != null ? ' · ticket ${sale.refSaleId}' : ''}'
+                            ' · ${sale.method == PayMethod.cash ? 'Espèces' : 'QR code'}'
+                            '${sale.seller != null ? ' · ${sale.seller}' : ''}',
+                          ),
+                          trailing: Text(s.money(sale.total),
+                              style: TextStyle(fontWeight: FontWeight.w800, color: refund ? pal.badFg : null)),
                         ),
                       );
                     },
@@ -122,10 +151,21 @@ class HistoryScreen extends StatelessWidget {
         ),
       );
 
-  void _showSale(BuildContext context, Sale sale) {
+  Future<void> _showSale(BuildContext context, Sale sale) async {
     final s = context.read<SettingsProvider>().settings;
     final printer = context.read<PrinterService>();
-    showModalBottomSheet<void>(
+    final salesProv = context.read<SalesProvider>();
+    final canRefund = context.read<AuthProvider>().can(Perm.refund);
+
+    // What was already given back on this sale (for a normal sale only).
+    final returned = !sale.isRefund && sale.id != null ? await salesProv.returnedQty(sale.id!) : <String, double>{};
+    final left = Sale.returnable(sale, returned);
+    final fullyReturned = !sale.isRefund && sale.lines.every((l) => (left[l.barcode] ?? 0) <= 0);
+    final anyReturned = returned.values.any((v) => v > 0);
+    if (!context.mounted) return;
+    final pal = context.pal;
+
+    await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
@@ -136,10 +176,26 @@ class HistoryScreen extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Ticket ${sale.id} · ${DateFormat('dd/MM/yyyy HH:mm').format(sale.date)}',
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+              Text(
+                '${sale.isRefund ? 'Retour' : 'Ticket'} ${sale.id} · ${DateFormat('dd/MM/yyyy HH:mm').format(sale.date)}',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: sale.isRefund ? pal.badFg : null),
+              ),
+              if (sale.isRefund && sale.refSaleId != null)
+                Text('Retour du ticket ${sale.refSaleId}', style: TextStyle(color: pal.muted, fontWeight: FontWeight.w600)),
+              if (sale.reason != null && sale.reason!.isNotEmpty)
+                Text('Motif : ${sale.reason}', style: TextStyle(color: pal.muted, fontWeight: FontWeight.w600)),
               if (sale.seller != null)
-                Text('Vendeur : ${sale.seller}', style: TextStyle(color: context.pal.muted, fontWeight: FontWeight.w600)),
+                Text('Vendeur : ${sale.seller}', style: TextStyle(color: pal.muted, fontWeight: FontWeight.w600)),
+              if (fullyReturned || anyReturned)
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(color: pal.badBg, borderRadius: BorderRadius.circular(8)),
+                    child: Text(fullyReturned ? 'Entièrement retourné' : 'Partiellement retourné',
+                        style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12, color: pal.badFg)),
+                  ),
+                ),
               const SizedBox(height: 8),
               Flexible(
                 child: ListView(
@@ -149,7 +205,7 @@ class HistoryScreen extends StatelessWidget {
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: 3),
                         child: Row(children: [
-                          Expanded(child: Text('${l.qty} × ${l.name}')),
+                          Expanded(child: Text('${fmtQty(l.qty, unit: l.unit)} × ${l.name}')),
                           Text(s.money(l.total)),
                         ]),
                       ),
@@ -158,23 +214,38 @@ class HistoryScreen extends StatelessWidget {
               ),
               const Divider(),
               Row(children: [
-                const Text('TOTAL', style: TextStyle(fontWeight: FontWeight.w800)),
+                Text(sale.isRefund ? 'REMBOURSÉ' : 'TOTAL', style: const TextStyle(fontWeight: FontWeight.w800)),
                 const Spacer(),
-                Text(s.money(sale.total), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
+                Text(s.money(sale.total.abs()), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
               ]),
-              if (sale.discount > 0)
+              if (sale.discount != 0)
                 Row(children: [
-                  Text('Remise', style: TextStyle(color: context.pal.muted)),
+                  Text('Remise', style: TextStyle(color: pal.muted)),
                   const Spacer(),
-                  Text('−${s.money(sale.discount)}', style: TextStyle(color: context.pal.muted)),
+                  Text('−${s.money(sale.discount.abs())}', style: TextStyle(color: pal.muted)),
                 ]),
               if (sale.lines.any((l) => l.cost > 0))
                 Row(children: [
-                  Text('Bénéfice', style: TextStyle(color: context.pal.muted)),
+                  Text('Bénéfice', style: TextStyle(color: pal.muted)),
                   const Spacer(),
-                  Text(s.money(sale.profit), style: TextStyle(color: context.pal.muted)),
+                  Text(s.money(sale.profit), style: TextStyle(color: pal.muted)),
                 ]),
               const SizedBox(height: 12),
+              if (!sale.isRefund && canRefund && !fullyReturned) ...[
+                OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(foregroundColor: pal.badFg),
+                  icon: const Icon(Icons.assignment_return_outlined),
+                  label: const Text('Retour / annuler le ticket'),
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => ReturnScreen(sale: sale, returned: returned)),
+                    );
+                  },
+                ),
+                const SizedBox(height: 8),
+              ],
               OutlinedButton.icon(
                 icon: const Icon(Icons.print_outlined),
                 label: const Text('Réimprimer le ticket'),

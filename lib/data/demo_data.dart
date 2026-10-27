@@ -7,7 +7,7 @@ class DemoData {
   DemoData._();
 
   // name, price, cost, stock (null = not tracked), alert threshold
-  static const _catalog = <(String, double, double, int?, int)>[
+  static const _catalog = <(String, double, double, double?, int)>[
     ('Eau minérale 1,5 L', 0.800, 0.550, 120, 24),
     ('Lait demi-écrémé 1 L', 1.450, 1.250, 60, 12),
     ('Café Délice 250 g', 4.500, 3.600, 40, 8),
@@ -36,6 +36,26 @@ class DemoData {
     ('Dattes Deglet Nour 500 g', 9.500, 7.800, 12, 4),
   ];
 
+  // Sold by weight (price per kg): name, price/kg, cost/kg, stock in kg, alert in kg.
+  static const _weighed = <(String, double, double, double, int)>[
+    ('Tomates (kg)', 1.800, 1.300, 40.0, 8),
+    ('Pommes de terre (kg)', 1.400, 1.000, 55.0, 10),
+    ('Oranges (kg)', 2.200, 1.600, 6.5, 8),
+    ('Bananes (kg)', 4.500, 3.600, 18.5, 5),
+    ('Fromage à la coupe (kg)', 22.000, 18.500, 3.2, 1),
+  ];
+
+  // Quick-access row of the Caisse (no barcode needed).
+  static const _favorites = {
+    'Baguette',
+    'Tomates (kg)',
+    'Pommes de terre (kg)',
+    'Oranges (kg)',
+    'Bananes (kg)',
+    'Eau minérale 1,5 L',
+    'Lait demi-écrémé 1 L',
+  };
+
   /// Valid EAN-13 for demo product [i]: 6199 + 8-digit index + check digit.
   static String barcode(int i) {
     final base = '6199${(i + 1).toString().padLeft(8, '0')}';
@@ -46,17 +66,42 @@ class DemoData {
     return '$base${(10 - sum % 10) % 10}';
   }
 
-  static List<Product> products() => [
-        for (var i = 0; i < _catalog.length; i++)
-          Product(
-            barcode: barcode(i),
-            name: _catalog[i].$1,
-            price: _catalog[i].$2,
-            cost: _catalog[i].$3,
-            stock: _catalog[i].$4,
-            minStock: _catalog[i].$5,
-          ),
-      ];
+  static List<Product> products() {
+    final out = <Product>[
+      for (var i = 0; i < _catalog.length; i++)
+        Product(
+          barcode: barcode(i),
+          name: _catalog[i].$1,
+          price: _catalog[i].$2,
+          cost: _catalog[i].$3,
+          stock: _catalog[i].$4,
+          minStock: _catalog[i].$5,
+          favorite: _favorites.contains(_catalog[i].$1),
+        ),
+    ];
+    for (var j = 0; j < _weighed.length; j++) {
+      final w = _weighed[j];
+      out.add(Product(
+        barcode: barcode(_catalog.length + j),
+        name: w.$1,
+        price: w.$2,
+        cost: w.$3,
+        stock: w.$4,
+        minStock: w.$5,
+        unit: 'kg',
+        favorite: _favorites.contains(w.$1),
+      ));
+    }
+    // Bread has no barcode and is not stock-tracked: one tap in the quick row.
+    out.add(Product(
+      barcode: barcode(_catalog.length + _weighed.length),
+      name: 'Baguette',
+      price: 0.250,
+      cost: 0.180,
+      favorite: true,
+    ));
+    return out;
+  }
 
   /// About [days] days of plausible sales ending [now] (today included).
   /// Deterministic for a given [seed].
@@ -87,13 +132,16 @@ class DemoData {
               barcode: p.barcode,
               name: p.name,
               price: p.price,
-              qty: 1 + (rnd.nextInt(4) == 0 ? rnd.nextInt(3) : 0),
+              qty: p.byWeight
+                  ? round3(0.25 + rnd.nextInt(46) * 0.05) // 0.25 .. 2.5 kg
+                  : (1 + (rnd.nextInt(4) == 0 ? rnd.nextInt(3) : 0)).toDouble(),
               cost: p.cost,
+              unit: p.unit,
             ),
         ];
-        final subtotal = lines.fold(0.0, (s, l) => s + l.total);
-        final discount = rnd.nextInt(10) == 0 ? (subtotal * 0.1 * 1000).round() / 1000 : 0.0;
-        final total = subtotal - discount;
+        final subtotal = round3(lines.fold(0.0, (s, l) => s + l.total));
+        final discount = rnd.nextInt(10) == 0 ? round3(subtotal * 0.1) : 0.0;
+        final total = round3(subtotal - discount);
         final cash = rnd.nextInt(100) < 70;
         out.add(Sale(
           date: day.add(Duration(minutes: min(m, 23 * 60 + 59))),

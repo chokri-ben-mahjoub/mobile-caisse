@@ -3,7 +3,8 @@ import 'package:flutter/foundation.dart';
 import '../data/database.dart';
 import '../data/models.dart';
 
-enum ScanResult { added, unknown }
+/// `weighed`: the product is sold by weight, the screen must ask for the weight.
+enum ScanResult { added, unknown, weighed }
 
 class CartProvider extends ChangeNotifier {
   CartProvider(this._db) {
@@ -16,30 +17,43 @@ class CartProvider extends ChangeNotifier {
   List<HeldCart> held = [];
 
   List<SaleLine> get lines => _lines.values.toList();
-  int get itemCount => _lines.values.fold(0, (s, l) => s + l.qty);
-  double get subtotal => _lines.values.fold(0.0, (s, l) => s + l.total);
-  double get discountAmount => discount?.amountFor(subtotal) ?? 0;
-  double get total => subtotal - discountAmount;
-  bool get isEmpty => _lines.isEmpty;
-  int qtyOf(String barcode) => _lines[barcode]?.qty ?? 0;
 
-  /// Adds the product for [barcode]; a repeated scan increments the quantity.
+  /// Articles in the cart (a weighed item counts for one).
+  int get itemCount => _lines.values.fold(0, (s, l) => s + l.articles);
+  double get subtotal => round3(_lines.values.fold(0.0, (s, l) => s + l.total));
+  double get discountAmount => discount?.amountFor(subtotal) ?? 0;
+  double get total => round3(subtotal - discountAmount);
+  bool get isEmpty => _lines.isEmpty;
+  double qtyOf(String barcode) => _lines[barcode]?.qty ?? 0;
+
+  /// Looks the product up. Unit products are added straight away; a weighed
+  /// product is returned with [ScanResult.weighed] so the caller can ask the weight.
   Future<(ScanResult, Product?)> scan(String barcode) async {
     final product = await _db.productByBarcode(barcode);
     if (product == null) return (ScanResult.unknown, null);
+    if (product.byWeight) return (ScanResult.weighed, product);
     add(product);
     return (ScanResult.added, product);
   }
 
-  void add(Product p) {
+  /// Adds [qty] of [p] (1 unit, or a weight in kg for weighed products).
+  void add(Product p, {double qty = 1}) {
     final cur = _lines[p.barcode];
     _lines[p.barcode] = SaleLine(
       barcode: p.barcode,
       name: p.name,
       price: p.price,
-      qty: (cur?.qty ?? 0) + 1,
+      qty: round3((cur?.qty ?? 0) + qty),
       cost: p.cost,
+      unit: p.unit,
     );
+    notifyListeners();
+  }
+
+  /// A one-off article that is not in the product base (no barcode, odd price).
+  void addFree({required String name, required double price, double qty = 1}) {
+    final key = 'LIBRE-${DateTime.now().microsecondsSinceEpoch}';
+    _lines[key] = SaleLine(barcode: key, name: name, price: price, qty: qty);
     notifyListeners();
   }
 
@@ -54,11 +68,28 @@ class CartProvider extends ChangeNotifier {
     final l = _lines[barcode];
     if (l == null) return;
     if (l.qty <= 1) {
-      _lines.remove(barcode);
-      if (_lines.isEmpty) discount = null;
-    } else {
-      _lines[barcode] = l.withQty(l.qty - 1);
+      remove(barcode);
+      return;
     }
+    _lines[barcode] = l.withQty(l.qty - 1);
+    notifyListeners();
+  }
+
+  /// Sets the quantity (weight) of a line; zero or less removes it.
+  void setQty(String barcode, double q) {
+    final l = _lines[barcode];
+    if (l == null) return;
+    if (q <= 0) {
+      remove(barcode);
+      return;
+    }
+    _lines[barcode] = l.withQty(round3(q));
+    notifyListeners();
+  }
+
+  void remove(String barcode) {
+    _lines.remove(barcode);
+    if (_lines.isEmpty) discount = null;
     notifyListeners();
   }
 

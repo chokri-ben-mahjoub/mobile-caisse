@@ -3,6 +3,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
 
 import 'data/backup_service.dart';
+import 'data/closing_service.dart';
 import 'data/database.dart';
 import 'data/printer_service.dart';
 import 'data/settings_store.dart';
@@ -26,6 +27,7 @@ Future<void> main() async {
   runApp(MultiProvider(
     providers: [
       Provider<BackupService>(create: (_) => BackupService(db)),
+      Provider<ClosingService>(create: (_) => ClosingService(db)),
       ChangeNotifierProvider.value(value: auth),
       Provider<PrinterService>(create: (_) => PrinterService()),
       ChangeNotifierProvider(create: (_) => SettingsProvider(store, settings)),

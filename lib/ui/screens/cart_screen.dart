@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:provider/provider.dart';
 
@@ -8,10 +9,12 @@ import '../../data/barcode_utils.dart';
 import '../../data/models.dart';
 import '../../logic/auth_provider.dart';
 import '../../logic/cart_provider.dart';
+import '../../logic/products_provider.dart';
 import '../../logic/settings_provider.dart';
 import '../../data/settings_store.dart';
 import '../theme.dart';
 import '../widgets.dart';
+import 'closing_screen.dart';
 import 'payment_screen.dart';
 import 'product_form_screen.dart';
 
@@ -76,18 +79,17 @@ class _CartScreenState extends State<CartScreen> {
     final cart = context.read<CartProvider>();
     final (result, product) = await cart.scan(code);
     if (!mounted) return;
-    if (result == ScanResult.added) {
-      final qty = cart.qtyOf(product!.barcode);
-      if (product.tracked && qty > product.stock!) {
-        _flash(
-          '⚠ ${product.name} : stock insuffisant (${product.stock})',
-          warn: true,
-        );
-      } else {
-        _flash('✓ ${product.name} ajouté');
-      }
-      return;
+    switch (result) {
+      case ScanResult.added:
+        _announceAdded(product!);
+        return;
+      case ScanResult.weighed:
+        await _addWeighed(product!);
+        return;
+      case ScanResult.unknown:
+        break;
     }
+    if (!mounted) return;
     _busy = true;
     final create = await showDialog<bool>(
       context: context,
@@ -111,17 +113,222 @@ class _CartScreenState extends State<CartScreen> {
       ),
     );
     if (create == true && mounted) {
-      final saved = await Navigator.push<bool>(
+      final saved = await Navigator.push<Product>(
         context,
-        MaterialPageRoute(
-          builder: (_) =>
-              ProductFormScreen(barcode: code, addToCartAfterSave: true),
-        ),
+        MaterialPageRoute(builder: (_) => ProductFormScreen(barcode: code)),
       );
-      if (saved == true && mounted) _flash('✓ Produit créé et ajouté');
+      if (saved != null && mounted) {
+        if (saved.byWeight) {
+          await _addWeighed(saved);
+        } else {
+          cart.add(saved);
+          _flash('✓ Produit créé et ajouté');
+        }
+      }
     }
     _busy = false;
     _lastAt = DateTime.now();
+  }
+
+  /// Confirmation after a unit product was added; warns when stock runs short.
+  void _announceAdded(Product product) {
+    final qty = context.read<CartProvider>().qtyOf(product.barcode);
+    if (product.tracked && qty > product.stock!) {
+      _flash(
+        '⚠ ${product.name} : stock insuffisant (${fmtQty(product.stock!, unit: product.unit)})',
+        warn: true,
+      );
+    } else {
+      _flash('✓ ${product.name} ajouté');
+    }
+  }
+
+  /// One tap on a quick-access product.
+  Future<void> _quickAdd(Product p) async {
+    if (p.byWeight) {
+      await _addWeighed(p);
+    } else {
+      context.read<CartProvider>().add(p);
+      _announceAdded(p);
+    }
+  }
+
+  Future<void> _addWeighed(Product p) async {
+    final w = await _askWeight(name: p.name, pricePerKg: p.price);
+    if (w == null || !mounted) return;
+    context.read<CartProvider>().add(p, qty: w);
+    _announceAdded(p);
+  }
+
+  Future<void> _editWeight(SaleLine l) async {
+    final w = await _askWeight(name: l.name, pricePerKg: l.price, initial: l.qty);
+    if (w == null || !mounted) return;
+    context.read<CartProvider>().setQty(l.barcode, w);
+  }
+
+  /// Asks the weight in kg (with 250 g / 500 g / 1 kg shortcuts) and shows the total.
+  Future<double?> _askWeight({
+    required String name,
+    required double pricePerKg,
+    double? initial,
+  }) async {
+    final s = context.read<SettingsProvider>().settings;
+    final ctrl = TextEditingController(text: initial == null ? '' : fmtQty(initial));
+    _busy = true;
+    final w = await showDialog<double>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSt) {
+          final v = double.tryParse(ctrl.text.trim().replaceAll(',', '.'));
+          final ok = v != null && v > 0;
+          return AlertDialog(
+            icon: const Icon(Icons.scale_rounded, size: 36),
+            title: Text(name, textAlign: TextAlign.center),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('${s.money(pricePerKg)} / kg',
+                    style: TextStyle(color: ctx.pal.muted, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: ctrl,
+                  autofocus: true,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]'))],
+                  onChanged: (_) => setSt(() {}),
+                  onSubmitted: (_) {
+                    if (ok) Navigator.pop(ctx, v);
+                  },
+                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
+                  decoration: const InputDecoration(labelText: 'Poids', suffixText: 'kg'),
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    for (final e in const {'250 g': 0.25, '500 g': 0.5, '1 kg': 1.0}.entries)
+                      ActionChip(
+                        label: Text(e.key),
+                        onPressed: () => setSt(() => ctrl.text = fmtQty(e.value)),
+                      ),
+                  ],
+                ),
+                if (ok)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 12),
+                    child: Text('Total : ${s.money(round3(v * pricePerKg))}',
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
+                  ),
+              ],
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
+              FilledButton(
+                style: FilledButton.styleFrom(minimumSize: const Size(100, 44)),
+                onPressed: ok ? () => Navigator.pop(ctx, v) : null,
+                child: const Text('Ajouter'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    _busy = false;
+    return w;
+  }
+
+  /// An article that is not in the base: name, price, quantity.
+  Future<void> _addFreeArticle() async {
+    final s = context.read<SettingsProvider>().settings;
+    final name = TextEditingController();
+    final price = TextEditingController();
+    final qty = TextEditingController(text: '1');
+    _busy = true;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSt) {
+          final p = double.tryParse(price.text.trim().replaceAll(',', '.'));
+          final q = double.tryParse(qty.text.trim().replaceAll(',', '.'));
+          final valid = p != null && p > 0 && q != null && q > 0;
+          return AlertDialog(
+            icon: const Icon(Icons.add_shopping_cart_rounded, size: 36),
+            title: const Text('Article libre'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: name,
+                  textCapitalization: TextCapitalization.sentences,
+                  decoration: const InputDecoration(labelText: 'Nom (facultatif)', hintText: 'Article'),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      flex: 3,
+                      child: TextField(
+                        controller: price,
+                        autofocus: true,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]'))],
+                        onChanged: (_) => setSt(() {}),
+                        decoration: InputDecoration(labelText: 'Prix', suffixText: s.currency),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      flex: 2,
+                      child: TextField(
+                        controller: qty,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]'))],
+                        onChanged: (_) => setSt(() {}),
+                        decoration: const InputDecoration(labelText: 'Qté'),
+                      ),
+                    ),
+                  ],
+                ),
+                if (valid)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 12),
+                    child: Text('Total : ${s.money(round3(p * q))}',
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
+                  ),
+              ],
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
+              FilledButton(
+                style: FilledButton.styleFrom(minimumSize: const Size(100, 44)),
+                onPressed: valid ? () => Navigator.pop(ctx, true) : null,
+                child: const Text('Ajouter'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    _busy = false;
+    if (ok != true || !mounted) return;
+    final label = name.text.trim().isEmpty ? 'Article' : name.text.trim();
+    context.read<CartProvider>().addFree(
+          name: label,
+          price: double.parse(price.text.trim().replaceAll(',', '.')),
+          qty: double.parse(qty.text.trim().replaceAll(',', '.')),
+        );
+    _flash('✓ $label ajouté');
+  }
+
+  void _onMenu(String v) {
+    switch (v) {
+      case 'code':
+        _manualEntry();
+      case 'clear':
+        _confirmClear();
+      case 'closing':
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const ClosingScreen()));
+    }
   }
 
   Future<void> _manualEntry() async {
@@ -378,6 +585,7 @@ class _CartScreenState extends State<CartScreen> {
     final cart = context.watch<CartProvider>();
     final s = context.watch<SettingsProvider>().settings;
     final auth = context.watch<AuthProvider>();
+    final favorites = context.watch<ProductsProvider>().favorites;
     final lines = cart.lines;
 
     return Column(
@@ -441,11 +649,6 @@ class _CartScreenState extends State<CartScreen> {
                 ),
               ),
               SoftIconButton(
-                icon: Icons.keyboard_alt_outlined,
-                tooltip: 'Saisir un code',
-                onPressed: _manualEntry,
-              ),
-              SoftIconButton(
                 icon: _cameraOn
                     ? Icons.videocam_rounded
                     : Icons.videocam_off_outlined,
@@ -453,10 +656,32 @@ class _CartScreenState extends State<CartScreen> {
                 onPressed: () => setState(() => _cameraOn = !_cameraOn),
               ),
               SoftIconButton(
-                icon: Icons.delete_outline_rounded,
-                tooltip: 'Vider',
-                color: const Color(0xFFDC2626),
-                onPressed: _confirmClear,
+                icon: Icons.add_shopping_cart_rounded,
+                tooltip: 'Article libre (sans code-barres)',
+                onPressed: _addFreeArticle,
+              ),
+              Padding(
+                padding: const EdgeInsets.only(left: 8),
+                child: PopupMenuButton<String>(
+                  tooltip: 'Plus',
+                  onSelected: _onMenu,
+                  itemBuilder: (_) => [
+                    const PopupMenuItem(value: 'code', child: Text('Saisir un code-barres')),
+                    const PopupMenuItem(value: 'clear', child: Text('Vider le panier')),
+                    if (auth.can(Perm.closing))
+                      const PopupMenuItem(value: 'closing', child: Text('Clôture de caisse')),
+                  ],
+                  child: Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: context.pal.card,
+                      borderRadius: BorderRadius.circular(14),
+                      boxShadow: context.pal.shadow,
+                    ),
+                    child: Icon(Icons.more_vert_rounded, color: context.pal.accent, size: 22),
+                  ),
+                ),
               ),
             ],
           ),
@@ -557,6 +782,29 @@ class _CartScreenState extends State<CartScreen> {
               ),
             ),
           ),
+        if (favorites.isNotEmpty)
+          SizedBox(
+            height: 52,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              children: [
+                for (final f in favorites)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: ActionChip(
+                      avatar: Icon(
+                        f.byWeight ? Icons.scale_rounded : Icons.bolt_rounded,
+                        size: 18,
+                        color: context.pal.accent,
+                      ),
+                      label: Text('${f.name} · ${s.money(f.price)}${f.byWeight ? '/kg' : ''}'),
+                      onPressed: () => _quickAdd(f),
+                    ),
+                  ),
+              ],
+            ),
+          ),
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 14, 12, 4),
           child: Row(
@@ -636,7 +884,12 @@ class _CartScreenState extends State<CartScreen> {
                   itemCount: lines.length,
                   separatorBuilder: (_, _) => const SizedBox(height: 10),
                   itemBuilder: (_, i) =>
-                      _LineCard(line: lines[i], settings: s, cart: cart),
+                      _LineCard(
+                    line: lines[i],
+                    settings: s,
+                    cart: cart,
+                    onEditWeight: () => _editWeight(lines[i]),
+                  ),
                 ),
         ),
         Padding(
@@ -663,10 +916,12 @@ class _LineCard extends StatelessWidget {
     required this.line,
     required this.settings,
     required this.cart,
+    this.onEditWeight,
   });
   final SaleLine line;
   final AppSettings settings;
   final CartProvider cart;
+  final VoidCallback? onEditWeight;
 
   @override
   Widget build(BuildContext context) {
@@ -690,6 +945,36 @@ class _LineCard extends StatelessWidget {
             ),
           ),
         );
+
+    final weightPill = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Material(
+          color: context.pal.soft2,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(14),
+            onTap: onEditWeight,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.scale_rounded, size: 18, color: context.pal.accent),
+                  const SizedBox(width: 6),
+                  Text(
+                    fmtQty(line.qty, unit: 'kg'),
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 6),
+        step(Icons.close_rounded, () => cart.remove(line.barcode)),
+      ],
+    );
 
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
@@ -735,7 +1020,7 @@ class _LineCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '${settings.money(line.price)} × ${line.qty}',
+                  '${settings.money(line.price)}${line.byWeight ? '/kg' : ''} × ${fmtQty(line.qty, unit: line.unit)}',
                   style: TextStyle(
                     color: context.pal.muted,
                     fontWeight: FontWeight.w600,
@@ -753,7 +1038,9 @@ class _LineCard extends StatelessWidget {
               ],
             ),
           ),
-          Container(
+          line.byWeight
+              ? weightPill
+              : Container(
             padding: const EdgeInsets.all(4),
             decoration: BoxDecoration(
               color: context.pal.soft2,
@@ -766,7 +1053,7 @@ class _LineCard extends StatelessWidget {
                 SizedBox(
                   width: 36,
                   child: Text(
-                    '${line.qty}',
+                    fmtQty(line.qty),
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       fontSize: 19,

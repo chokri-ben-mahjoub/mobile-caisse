@@ -21,13 +21,16 @@ class ProductsProvider extends ChangeNotifier {
   List<Product> all = [];
 
   /// Adds [delta] units (negative to remove) to a tracked product's stock.
-  Future<void> adjustStock(Product p, int delta) => setStock(p, (p.stock ?? 0) + delta);
+  Future<void> adjustStock(Product p, double delta) => setStock(p, round3((p.stock ?? 0) + delta));
 
   /// Sets the stock of [p] to [value] (never below 0) and starts tracking it.
-  Future<void> setStock(Product p, int value) async {
+  Future<void> setStock(Product p, double value) async {
     await _db.setStock(p.barcode, value);
     await load();
   }
+
+  /// Products shown in the quick-access row of the Caisse.
+  List<Product> get favorites => all.where((p) => p.favorite).toList();
 
   Future<void> load() async {
     products = await _db.products(query: _query, onlyLow: onlyLow);

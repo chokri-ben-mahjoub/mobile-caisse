@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../data/backup_service.dart';
+import '../../data/models.dart';
 import '../../logic/products_provider.dart';
 import '../theme.dart';
 import '../widgets.dart';
@@ -103,7 +104,7 @@ class ProductsScreen extends StatelessWidget {
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: Text(
-                                  p.stock == 0 ? 'Épuisé' : 'Stock : ${p.stock}',
+                                  p.stock == 0 ? 'Épuisé' : 'Stock : ${fmtQty(p.stock ?? 0, unit: p.unit)}',
                                   style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w700,
@@ -116,7 +117,7 @@ class ProductsScreen extends StatelessWidget {
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Text(s.money(p.price), style: const TextStyle(fontWeight: FontWeight.w800)),
+                              Text(p.byWeight ? '${s.money(p.price)}/kg' : s.money(p.price), style: const TextStyle(fontWeight: FontWeight.w800)),
                               IconButton(
                                 icon: const Icon(Icons.delete_outline),
                                 onPressed: () async {
