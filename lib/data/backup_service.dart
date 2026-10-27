@@ -63,7 +63,7 @@ class BackupService {
 
   Future<void> shareSalesCsv() async {
     final rows = await _db.salesFlat();
-    final b = StringBuffer('﻿Ticket;Date;Heure;Paiement;Code-barres;Article;Prix;Quantité;Total ligne;Prix d\'achat;Bénéfice ligne;Remise ticket;Total ticket;Montant reçu\n');
+    final b = StringBuffer('﻿Ticket;Date;Heure;Paiement;Code-barres;Article;Prix;Quantité;Total ligne;Prix d\'achat;Bénéfice ligne;Remise ticket;Total ticket;Montant reçu;Vendeur\n');
     for (final r in rows) {
       final d = DateTime.parse(r['date'] as String);
       String t(int v) => v.toString().padLeft(2, '0');
@@ -85,6 +85,7 @@ class BackupService {
         (r['discount'] as num) > 0 ? dec(r['discount'] as num) : '',
         dec(r['total'] as num),
         dec(r['received'] as num?),
+        esc(r['seller']),
       ].join(';'));
     }
     final f = await _tmp('ventes_${_stamp()}.csv');

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../data/backup_service.dart';
 import '../../logic/products_provider.dart';
+import '../theme.dart';
 import '../widgets.dart';
 import '../../logic/settings_provider.dart';
 import 'product_form_screen.dart';
@@ -79,7 +80,7 @@ class ProductsScreen extends StatelessWidget {
             ),
           Expanded(
             child: prov.products.isEmpty
-                ? const Center(child: Text('Aucun produit', style: TextStyle(color: Colors.black54)))
+                ? Center(child: Text('Aucun produit', style: TextStyle(color: context.pal.muted)))
                 : ListView.separated(
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 90),
                     itemCount: prov.products.length,
@@ -98,7 +99,7 @@ class ProductsScreen extends StatelessWidget {
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                                 decoration: BoxDecoration(
-                                  color: p.lowStock ? Colors.red.shade50 : Colors.green.shade50,
+                                  color: p.lowStock ? context.pal.badBg : context.pal.goodBg,
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: Text(
@@ -106,7 +107,7 @@ class ProductsScreen extends StatelessWidget {
                                   style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w700,
-                                    color: p.lowStock ? Colors.red.shade800 : Colors.green.shade800,
+                                    color: p.lowStock ? context.pal.badFg : context.pal.goodFg,
                                   ),
                                 ),
                               ),

@@ -5,10 +5,12 @@ import 'package:qr_flutter/qr_flutter.dart';
 import '../../data/models.dart';
 import '../../data/printer_service.dart';
 import '../../data/settings_store.dart';
+import '../../logic/auth_provider.dart';
 import '../../logic/cart_provider.dart';
 import '../../logic/products_provider.dart';
 import '../../logic/sales_provider.dart';
 import '../../logic/settings_provider.dart';
+import '../theme.dart';
 import '../widgets.dart';
 
 class PaymentScreen extends StatefulWidget {
@@ -37,7 +39,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
   Future<Sale> _ensureSaved() async {
     if (_saved != null) return _saved!;
     final r = _method == PayMethod.cash ? _receivedValue : null;
-    final sale = Sale(date: DateTime.now(), total: _total, discount: _discount, method: _method, received: r, lines: _lines);
+    final sale = Sale(date: DateTime.now(), total: _total, discount: _discount, method: _method, received: r, lines: _lines,
+        seller: context.read<AuthProvider>().currentName);
     final saved = await context.read<SalesProvider>().record(sale);
     if (!mounted) return saved;
     context.read<CartProvider>().clear();
@@ -69,7 +72,6 @@ class _PaymentScreenState extends State<PaymentScreen> {
   @override
   Widget build(BuildContext context) {
     final s = context.watch<SettingsProvider>().settings;
-    final cs = Theme.of(context).colorScheme;
     final locked = _saved != null;
 
     return Scaffold(
@@ -78,19 +80,10 @@ class _PaymentScreenState extends State<PaymentScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            Container(
-              padding: const EdgeInsets.symmetric(vertical: 18),
-              decoration: BoxDecoration(color: cs.primaryContainer, borderRadius: BorderRadius.circular(16)),
-              child: Column(
-                children: [
-                  if (_discount > 0)
-                    Text('Remise −${s.money(_discount)}', style: TextStyle(color: cs.primary, fontWeight: FontWeight.w700)),
-                  const Text('Total à payer'),
-                  FittedBox(
-                    child: Text(s.money(_total), style: const TextStyle(fontSize: 40, fontWeight: FontWeight.w900)),
-                  ),
-                ],
-              ),
+            TotalBanner(
+              label: 'TOTAL À PAYER',
+              amount: s.money(_total),
+              sub: _discount > 0 ? 'Remise −${s.money(_discount)}' : null,
             ),
             const SizedBox(height: 14),
             SegmentedButton<PayMethod>(
@@ -111,10 +104,10 @@ class _PaymentScreenState extends State<PaymentScreen> {
               label: const Text('Imprimer le reçu'),
             ),
             const SizedBox(height: 10),
-            FilledButton.icon(
+            PrimaryButton(
               onPressed: _working ? null : _finish,
-              icon: const Icon(Icons.check),
-              label: const Text('Terminer la vente'),
+              icon: Icons.check_circle_rounded,
+              label: 'Terminer la vente',
             ),
           ],
         ),
@@ -124,59 +117,68 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
   Widget _cashCard(AppSettings s) {
     final quick = [5, 10, 20, 50];
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          children: [
-            TextField(
-              controller: _received,
-              enabled: _saved == null,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              onChanged: (_) => setState(() {}),
-              decoration: InputDecoration(labelText: 'Montant reçu (facultatif)', suffixText: s.currency),
+    final enough = (_receivedValue ?? 0) >= _total && _receivedValue != null;
+    Widget chip(String label, VoidCallback? onTap) => Expanded(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 3),
+            child: OutlinedButton(
+              style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48), padding: EdgeInsets.zero),
+              onPressed: onTap,
+              child: Text(label),
             ),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 8,
-              children: [
-                ActionChip(
-                  label: const Text('Exact'),
-                  onPressed: _saved != null
-                      ? null
-                      : () => setState(() => _received.text = _total.toStringAsFixed(s.decimals)),
-                ),
-                for (final v in quick)
-                  ActionChip(
-                    label: Text('$v'),
-                    onPressed: _saved != null ? null : () => setState(() => _received.text = '$v'),
-                  ),
-              ],
+          ),
+        );
+    return SoftCard(
+      child: Column(
+        children: [
+          TextField(
+            controller: _received,
+            enabled: _saved == null,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            onChanged: (_) => setState(() {}),
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+            decoration: InputDecoration(labelText: 'Montant reçu (facultatif)', suffixText: s.currency),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              chip('Exact',
+                  _saved != null ? null : () => setState(() => _received.text = _total.toStringAsFixed(s.decimals))),
+              for (final v in quick) chip('$v', _saved != null ? null : () => setState(() => _received.text = '$v')),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              color: enough ? context.pal.goodBg : context.pal.soft2,
+              borderRadius: BorderRadius.circular(16),
             ),
-            const Divider(height: 28),
-            Row(
+            child: Row(
               children: [
-                const Text('Monnaie à rendre', style: TextStyle(fontSize: 16)),
+                const Text('Monnaie à rendre', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
                 const Spacer(),
-                Text(s.money(_change), style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800)),
+                Text(s.money(_change),
+                    style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w900,
+                        color: enough ? context.pal.goodFg : context.pal.ink)),
               ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _qrCard(AppSettings s) => Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            children: [
-              QrImageView(data: s.qrData(_total), size: 240, backgroundColor: Colors.white),
-              const SizedBox(height: 8),
-              const Text('Faites scanner ce code par le client', style: TextStyle(color: Colors.black54)),
-            ],
-          ),
+  Widget _qrCard(AppSettings s) => SoftCard(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            QrImageView(data: s.qrData(_total), size: 240, backgroundColor: Colors.white),
+            const SizedBox(height: 8),
+            Text('Faites scanner ce code par le client', style: TextStyle(color: context.pal.muted, fontWeight: FontWeight.w600)),
+          ],
         ),
       );
 }

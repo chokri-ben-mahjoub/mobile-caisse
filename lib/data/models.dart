@@ -23,6 +23,16 @@ class Product {
 
   bool get tracked => stock != null;
   bool get lowStock => stock != null && stock! <= minStock;
+  bool get outOfStock => stock != null && stock! <= 0;
+
+  Product withStock(int stock) => Product(
+        barcode: barcode,
+        name: name,
+        price: price,
+        cost: cost,
+        stock: stock < 0 ? 0 : stock,
+        minStock: minStock,
+      );
 
   Map<String, Object?> toMap() => {
         'barcode': barcode,
@@ -41,6 +51,42 @@ class Product {
         stock: m['stock'] as int?,
         minStock: (m['min_stock'] as int?) ?? 0,
       );
+}
+
+/// Totals shown at the top of the Stock tab.
+class StockSummary {
+  final int tracked;
+  final int untracked;
+  final int low;
+  final int out;
+  final int units;
+
+  /// Stock valued at purchase price (products without one are left out) and at sale price.
+  final double costValue;
+  final double saleValue;
+
+  const StockSummary({
+    required this.tracked,
+    required this.untracked,
+    required this.low,
+    required this.out,
+    required this.units,
+    required this.costValue,
+    required this.saleValue,
+  });
+
+  factory StockSummary.from(List<Product> all) {
+    final t = all.where((p) => p.tracked).toList();
+    return StockSummary(
+      tracked: t.length,
+      untracked: all.length - t.length,
+      low: t.where((p) => p.lowStock && !p.outOfStock).length,
+      out: t.where((p) => p.outOfStock).length,
+      units: t.fold(0, (s, p) => s + p.stock!),
+      costValue: t.fold(0.0, (s, p) => s + p.stock! * p.cost),
+      saleValue: t.fold(0.0, (s, p) => s + p.stock! * p.price),
+    );
+  }
 }
 
 class SaleLine {
@@ -116,6 +162,9 @@ class Sale {
   final double? received;
   final List<SaleLine> lines;
 
+  /// Name of the user who made the sale (null when accounts are not enabled).
+  final String? seller;
+
   const Sale({
     this.id,
     required this.date,
@@ -124,6 +173,7 @@ class Sale {
     required this.method,
     this.received,
     required this.lines,
+    this.seller,
   });
 
   int get itemCount => lines.fold(0, (s, l) => s + l.qty);
@@ -146,6 +196,67 @@ class Sale {
         method: method,
         received: received,
         lines: lines,
+        seller: seller,
+      );
+}
+
+/// Access rights, stored as a bitmask. The Caisse tab is open to every user.
+abstract final class Perm {
+  static const products = 1;
+  static const stock = 2;
+  static const history = 4;
+  static const settings = 8;
+  static const discount = 16;
+  static const all = 31;
+
+  static const labels = {
+    products: 'Produits',
+    stock: 'Stock',
+    history: 'Historique et bénéfice',
+    settings: 'Réglages',
+    discount: 'Remises',
+  };
+}
+
+enum Role {
+  owner('Propriétaire', Perm.all),
+  manager('Gérant', Perm.products | Perm.stock | Perm.history | Perm.discount),
+  cashier('Caissier', 0);
+
+  const Role(this.label, this.defaultPerms);
+  final String label;
+  final int defaultPerms;
+}
+
+/// A person who can sign in. Owners can do everything, including managing users.
+class AppUser {
+  final int? id;
+  final String name;
+  final String pinHash;
+  final Role role;
+  final int perms;
+
+  const AppUser({this.id, required this.name, required this.pinHash, required this.role, required this.perms});
+
+  bool get isOwner => role == Role.owner;
+  bool can(int perm) => isOwner || (perms & perm) != 0;
+
+  AppUser copyWith({String? name, String? pinHash, Role? role, int? perms}) => AppUser(
+        id: id,
+        name: name ?? this.name,
+        pinHash: pinHash ?? this.pinHash,
+        role: role ?? this.role,
+        perms: perms ?? this.perms,
+      );
+
+  Map<String, Object?> toMap() => {'name': name, 'pin_hash': pinHash, 'role': role.name, 'perms': perms};
+
+  factory AppUser.fromMap(Map<String, Object?> m) => AppUser(
+        id: m['id'] as int,
+        name: m['name'] as String,
+        pinHash: m['pin_hash'] as String,
+        role: Role.values.byName(m['role'] as String),
+        perms: m['perms'] as int,
       );
 }
 

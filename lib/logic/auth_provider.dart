@@ -3,51 +3,133 @@ import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 
+import '../data/database.dart';
+import '../data/models.dart';
 import '../data/settings_store.dart';
 
-/// Optional 4-digit PIN protecting Produits, Historique and Réglages.
+/// User accounts, sign-in and access rights.
+///
+/// With no user the app is open (single-user mode, as before). Once an owner
+/// account exists, everyone signs in with a 4-digit PIN and only sees what
+/// their role allows.
 class AuthProvider extends ChangeNotifier {
-  AuthProvider(this._store, this._hash);
+  AuthProvider(this._db, this._store);
+  final AppDatabase _db;
   final SettingsStore _store;
-  String? _hash;
-  bool _unlocked = false;
+
+  List<AppUser> users = [];
+  AppUser? current;
+
   int _failures = 0;
+  DateTime? _lockedUntil;
 
-  bool get hasPin => _hash != null;
-  bool get locked => hasPin && !_unlocked;
-  int get failures => _failures;
+  static const maxFailures = 5;
+  static const lockSeconds = 30;
 
-  static String _h(String pin) => sha256.convert(utf8.encode('caisse:$pin')).toString();
+  static String hashPin(String pin) => sha256.convert(utf8.encode('caisse:$pin')).toString();
 
-  bool unlock(String pin) {
-    if (_hash == _h(pin)) {
-      _unlocked = true;
+  /// Accounts are in use.
+  bool get enabled => users.isNotEmpty;
+
+  /// Needs to sign in before using the app.
+  bool get needsLogin => enabled && current == null;
+
+  bool get isOwner => !enabled || (current?.isOwner ?? false);
+
+  /// Access check; everything is allowed when accounts are not enabled.
+  bool can(int perm) => !enabled || (current?.can(perm) ?? false);
+
+  String? get currentName => enabled ? current?.name : null;
+
+  /// Seconds left before another PIN attempt is allowed (0 = allowed).
+  int get lockRemaining {
+    final until = _lockedUntil;
+    if (until == null) return 0;
+    final left = until.difference(DateTime.now()).inSeconds + 1;
+    return left > 0 ? left : 0;
+  }
+
+  Future<void> load() async {
+    users = await _db.users();
+    if (users.isEmpty) {
+      // Migrate the single PIN of earlier versions to an owner account.
+      final old = await _store.loadPinHash();
+      if (old != null) {
+        await _db.insertUser(AppUser(name: 'Propriétaire', pinHash: old, role: Role.owner, perms: Perm.all));
+        await _store.savePinHash(null);
+        users = await _db.users();
+      }
+    }
+    if (current != null && !users.any((u) => u.id == current!.id)) current = null;
+    if (current != null) current = users.firstWhere((u) => u.id == current!.id);
+    notifyListeners();
+  }
+
+  /// Returns true on success. Five wrong PINs lock sign-in for 30 seconds.
+  bool login(AppUser user, String pin) {
+    if (lockRemaining > 0) return false;
+    if (user.pinHash == hashPin(pin)) {
+      current = user;
       _failures = 0;
+      _lockedUntil = null;
       notifyListeners();
       return true;
     }
-    _failures++;
+    if (++_failures >= maxFailures) {
+      _lockedUntil = DateTime.now().add(const Duration(seconds: lockSeconds));
+      _failures = 0;
+    }
     notifyListeners();
     return false;
   }
 
-  void lock() {
-    if (!hasPin) return;
-    _unlocked = false;
+  void logout() {
+    if (current == null) return;
+    current = null;
     notifyListeners();
   }
 
-  Future<void> setPin(String pin) async {
-    _hash = _h(pin);
-    _unlocked = true;
+  bool verifyCurrentPin(String pin) => current != null && current!.pinHash == hashPin(pin);
+
+  // ---- user management (owner) ----
+  /// First owner: enables accounts and signs that owner in.
+  Future<void> createFirstOwner(String name, String pin) async {
+    final id = await _db.insertUser(AppUser(name: name, pinHash: hashPin(pin), role: Role.owner, perms: Perm.all));
+    await load();
+    current = users.firstWhere((u) => u.id == id);
     notifyListeners();
-    await _store.savePinHash(_hash);
   }
 
-  Future<void> removePin() async {
-    _hash = null;
-    _unlocked = false;
-    notifyListeners();
-    await _store.savePinHash(null);
+  Future<void> addUser(String name, String pin, Role role, int perms) async {
+    await _db.insertUser(AppUser(name: name, pinHash: hashPin(pin), role: role, perms: role == Role.owner ? Perm.all : perms));
+    await load();
   }
+
+  /// [pin] null keeps the current PIN.
+  Future<void> updateUser(AppUser user, {required String name, required Role role, required int perms, String? pin}) async {
+    await _db.updateUser(user.copyWith(
+      name: name,
+      role: role,
+      perms: role == Role.owner ? Perm.all : perms,
+      pinHash: pin == null ? null : hashPin(pin),
+    ));
+    await load();
+  }
+
+  Future<void> deleteUser(AppUser user) async {
+    await _db.deleteUser(user.id!);
+    await load();
+  }
+
+  /// Back to single-user mode: removes every account.
+  Future<void> disableAccounts() async {
+    await _db.deleteAllUsers();
+    current = null;
+    await load();
+  }
+
+  int ownerCount() => users.where((u) => u.isOwner).length;
+
+  bool nameTaken(String name, {int? exceptId}) =>
+      users.any((u) => u.id != exceptId && u.name.toLowerCase() == name.trim().toLowerCase());
 }

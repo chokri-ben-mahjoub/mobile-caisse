@@ -73,6 +73,9 @@ class PrinterService {
     if (sale.id != null) {
       bytes.addAll(g.text('Ticket n° ${sale.id}'.replaceAll('°', ''), styles: const PosStyles(align: PosAlign.center)));
     }
+    if (sale.seller != null && sale.seller!.isNotEmpty) {
+      bytes.addAll(g.text(_ascii('Vendeur: ${sale.seller}'), styles: const PosStyles(align: PosAlign.center)));
+    }
     bytes.addAll(g.text('-' * cols));
 
     for (final l in sale.lines) {

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:provider/provider.dart';
 
+import '../../data/barcode_utils.dart';
 import '../../data/models.dart';
 import '../../logic/cart_provider.dart';
 import '../../logic/products_provider.dart';
@@ -170,8 +171,8 @@ class _ScanOnceScreenState extends State<_ScanOnceScreen> {
         appBar: AppBar(title: const Text('Scanner un code-barres')),
         body: MobileScanner(
           onDetect: (cap) {
-            final v = cap.barcodes.isEmpty ? null : cap.barcodes.first.rawValue;
-            if (!_done && v != null && v.isNotEmpty) {
+            final v = cap.barcodes.isEmpty ? null : cleanScan(cap.barcodes.first);
+            if (!_done && v != null) {
               _done = true;
               Navigator.pop(context, v);
             }

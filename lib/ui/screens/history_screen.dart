@@ -6,6 +6,7 @@ import '../../data/models.dart';
 import '../../data/printer_service.dart';
 import '../../logic/sales_provider.dart';
 import '../../logic/settings_provider.dart';
+import '../theme.dart';
 import '../widgets.dart';
 
 class HistoryScreen extends StatelessWidget {
@@ -16,6 +17,12 @@ class HistoryScreen extends StatelessWidget {
     final prov = context.watch<SalesProvider>();
     final s = context.watch<SettingsProvider>().settings;
     final dayLabel = DateFormat('dd/MM/yyyy').format(prov.day);
+
+    // Day total per seller (only when sales carry a seller name).
+    final bySeller = <String, double>{};
+    for (final sale in prov.sales) {
+      if (sale.seller != null) bySeller.update(sale.seller!, (v) => v + sale.total, ifAbsent: () => sale.total);
+    }
 
     return Scaffold(
       appBar: AppBar(title: const Text('Historique')),
@@ -55,9 +62,27 @@ class HistoryScreen extends StatelessWidget {
               ],
             ),
           ),
+          if (bySeller.isNotEmpty)
+            SizedBox(
+              height: 44,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                children: [
+                  for (final e in bySeller.entries)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: Chip(
+                        avatar: const Icon(Icons.person_outline_rounded, size: 18),
+                        label: Text('${e.key} · ${s.money(e.value)}'),
+                      ),
+                    ),
+                ],
+              ),
+            ),
           Expanded(
             child: prov.sales.isEmpty
-                ? const Center(child: Text('Aucune vente ce jour', style: TextStyle(color: Colors.black54)))
+                ? Center(child: Text('Aucune vente ce jour', style: TextStyle(color: context.pal.muted)))
                 : ListView.separated(
                     padding: const EdgeInsets.fromLTRB(16, 6, 16, 16),
                     itemCount: prov.sales.length,
@@ -70,7 +95,8 @@ class HistoryScreen extends StatelessWidget {
                           title: Text('Ticket ${sale.id} · ${DateFormat('HH:mm').format(sale.date)}',
                               style: const TextStyle(fontWeight: FontWeight.w700)),
                           subtitle: Text(
-                              '${sale.itemCount} article${sale.itemCount > 1 ? 's' : ''} · ${sale.method == PayMethod.cash ? 'Espèces' : 'QR code'}'),
+                              '${sale.itemCount} article${sale.itemCount > 1 ? 's' : ''} · ${sale.method == PayMethod.cash ? 'Espèces' : 'QR code'}'
+                              '${sale.seller != null ? ' · ${sale.seller}' : ''}'),
                           trailing: Text(s.money(sale.total), style: const TextStyle(fontWeight: FontWeight.w800)),
                         ),
                       );
@@ -112,6 +138,8 @@ class HistoryScreen extends StatelessWidget {
             children: [
               Text('Ticket ${sale.id} · ${DateFormat('dd/MM/yyyy HH:mm').format(sale.date)}',
                   style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+              if (sale.seller != null)
+                Text('Vendeur : ${sale.seller}', style: TextStyle(color: context.pal.muted, fontWeight: FontWeight.w600)),
               const SizedBox(height: 8),
               Flexible(
                 child: ListView(
@@ -136,15 +164,15 @@ class HistoryScreen extends StatelessWidget {
               ]),
               if (sale.discount > 0)
                 Row(children: [
-                  const Text('Remise', style: TextStyle(color: Colors.black54)),
+                  Text('Remise', style: TextStyle(color: context.pal.muted)),
                   const Spacer(),
-                  Text('−${s.money(sale.discount)}', style: const TextStyle(color: Colors.black54)),
+                  Text('−${s.money(sale.discount)}', style: TextStyle(color: context.pal.muted)),
                 ]),
               if (sale.lines.any((l) => l.cost > 0))
                 Row(children: [
-                  const Text('Bénéfice', style: TextStyle(color: Colors.black54)),
+                  Text('Bénéfice', style: TextStyle(color: context.pal.muted)),
                   const Spacer(),
-                  Text(s.money(sale.profit), style: const TextStyle(color: Colors.black54)),
+                  Text(s.money(sale.profit), style: TextStyle(color: context.pal.muted)),
                 ]),
               const SizedBox(height: 12),
               OutlinedButton.icon(

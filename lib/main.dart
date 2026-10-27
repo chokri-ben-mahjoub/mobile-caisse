@@ -20,12 +20,13 @@ Future<void> main() async {
   final db = await AppDatabase.open();
   final store = SettingsStore();
   final settings = await store.load();
-  final pinHash = await store.loadPinHash();
+  final auth = AuthProvider(db, store);
+  await auth.load(); // so the sign-in screen shows straight away when accounts exist
 
   runApp(MultiProvider(
     providers: [
       Provider<BackupService>(create: (_) => BackupService(db)),
-      ChangeNotifierProvider(create: (_) => AuthProvider(store, pinHash)),
+      ChangeNotifierProvider.value(value: auth),
       Provider<PrinterService>(create: (_) => PrinterService()),
       ChangeNotifierProvider(create: (_) => SettingsProvider(store, settings)),
       ChangeNotifierProvider(create: (_) => CartProvider(db)),
@@ -44,6 +45,8 @@ class CaisseApp extends StatelessWidget {
         title: 'Caisse POS',
         debugShowCheckedModeBanner: false,
         theme: buildTheme(),
+        darkTheme: buildTheme(Brightness.dark),
+        themeMode: ThemeMode.system,
         home: const AppShell(),
       );
 }

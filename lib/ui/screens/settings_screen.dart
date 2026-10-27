@@ -9,8 +9,10 @@ import '../../logic/cart_provider.dart';
 import '../../logic/products_provider.dart';
 import '../../logic/sales_provider.dart';
 import '../../logic/settings_provider.dart';
-import '../pin_lock.dart';
+import '../theme.dart';
 import '../widgets.dart';
+import 'demo_codes_screen.dart';
+import 'users_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -69,6 +71,70 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  Future<void> _reloadAfterDemo() async {
+    final cart = context.read<CartProvider>();
+    final sales = context.read<SalesProvider>();
+    cart.clear();
+    await cart.refreshHeld();
+    await sales.load();
+  }
+
+  Future<void> _loadDemo() => _run(() async {
+        await context.read<ProductsProvider>().loadDemo();
+        await _reloadAfterDemo();
+        if (mounted) showMsg(context, 'Données de démo chargées');
+      });
+
+  Future<void> _clearDemo() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Supprimer les données de démo ?'),
+        content: const Text('Les produits et ventes de démonstration seront supprimés, '
+            'ainsi que les ventes faites avec ces produits. Vos vraies données ne sont pas touchées.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
+          FilledButton(
+            style: FilledButton.styleFrom(minimumSize: const Size(110, 44), backgroundColor: const Color(0xFFDC2626)),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Supprimer'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    await _run(() async {
+      await context.read<ProductsProvider>().clearDemo();
+      await _reloadAfterDemo();
+      if (mounted) showMsg(context, 'Données de démo supprimées');
+    });
+  }
+
+  Widget _demoSection() {
+    final hasDemo = context.watch<ProductsProvider>().hasDemo;
+    if (!hasDemo) {
+      return OutlinedButton.icon(
+        onPressed: _loadDemo,
+        icon: const Icon(Icons.science_outlined),
+        label: const Text('Charger des données de démo'),
+      );
+    }
+    return Column(children: [
+      OutlinedButton.icon(
+        onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DemoCodesScreen())),
+        icon: const Icon(Icons.qr_code_2),
+        label: const Text('Codes-barres de démo à scanner'),
+      ),
+      const SizedBox(height: 10),
+      OutlinedButton.icon(
+        style: OutlinedButton.styleFrom(foregroundColor: const Color(0xFFDC2626)),
+        onPressed: _clearDemo,
+        icon: const Icon(Icons.delete_sweep_outlined),
+        label: const Text('Supprimer les données de démo'),
+      ),
+    ]);
+  }
+
   Future<void> _run(Future<void> Function() action) async {
     try {
       await action();
@@ -98,11 +164,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final products = context.read<ProductsProvider>();
     final sales = context.read<SalesProvider>();
     final cart = context.read<CartProvider>();
+    final auth = context.read<AuthProvider>();
     try {
       if (await backup.restoreFromPicker()) {
         cart.clear();
         await products.load();
         await sales.load();
+        await auth.load(); // accounts come from the backup too
         if (mounted) showMsg(context, 'Sauvegarde restaurée');
       }
     } on FormatException {
@@ -112,40 +180,36 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  Widget _pinSection() {
+  Widget _accountsSection() {
     final auth = context.watch<AuthProvider>();
-    if (!auth.hasPin) {
-      return OutlinedButton.icon(
-        icon: const Icon(Icons.lock_outline),
-        label: const Text('Activer le code PIN'),
-        onPressed: () async {
-          final pin = await askNewPin(context);
-          if (pin != null && mounted) {
-            await context.read<AuthProvider>().setPin(pin);
-            if (mounted) showMsg(context, 'Code PIN activé');
-          }
-        },
-      );
+    final pal = context.pal;
+    if (!auth.enabled) {
+      return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        OutlinedButton.icon(
+          icon: const Icon(Icons.group_add_outlined),
+          label: const Text('Activer les comptes utilisateurs'),
+          onPressed: () => Navigator.push(
+              context, MaterialPageRoute(builder: (_) => const UserFormScreen(firstOwner: true))),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(4, 8, 4, 0),
+          child: Text('Créez des caissiers et des gérants avec un code PIN et des accès limités.',
+              style: TextStyle(fontSize: 12, color: pal.muted)),
+        ),
+      ]);
     }
-    return Row(children: [
-      Expanded(
-        child: OutlinedButton(
-          onPressed: () async {
-            final pin = await askNewPin(context);
-            if (pin != null && mounted) await context.read<AuthProvider>().setPin(pin);
-          },
-          child: const Text('Changer le PIN'),
+    return Column(children: [
+      if (auth.isOwner)
+        OutlinedButton.icon(
+          icon: const Icon(Icons.manage_accounts_outlined),
+          label: Text('Gérer les utilisateurs (${auth.users.length})'),
+          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const UsersScreen())),
         ),
-      ),
-      const SizedBox(width: 10),
-      Expanded(
-        child: OutlinedButton(
-          onPressed: () async {
-            await context.read<AuthProvider>().removePin();
-            if (mounted) showMsg(context, 'Code PIN désactivé');
-          },
-          child: const Text('Désactiver'),
-        ),
+      if (auth.isOwner) const SizedBox(height: 10),
+      OutlinedButton.icon(
+        icon: const Icon(Icons.lock_outline),
+        label: Text('Verrouiller · connecté : ${auth.currentName ?? ''}'),
+        onPressed: auth.logout,
       ),
     ]);
   }
@@ -209,8 +273,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(width: 10),
             Expanded(child: OutlinedButton(onPressed: s.printerMac.isEmpty ? null : _test, child: const Text('Ticket de test'))),
           ]),
-          header('SÉCURITÉ'),
-          _pinSection(),
+          header('UTILISATEURS ET ACCÈS'),
+          _accountsSection(),
           header('DONNÉES ET SAUVEGARDE'),
           OutlinedButton.icon(
             onPressed: () => _run(() => context.read<BackupService>().shareSalesCsv()),
@@ -229,11 +293,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
             icon: const Icon(Icons.restore),
             label: const Text('Restaurer une sauvegarde'),
           ),
-          const Padding(
-            padding: EdgeInsets.fromLTRB(4, 8, 4, 0),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(4, 8, 4, 0),
             child: Text(
               'Envoyez la sauvegarde sur WhatsApp, e-mail ou Drive pour la garder hors du téléphone.',
-              style: TextStyle(fontSize: 12, color: Colors.black54),
+              style: TextStyle(fontSize: 12, color: context.pal.muted),
+            ),
+          ),
+          header('MODE DÉMO'),
+          _demoSection(),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(4, 8, 4, 0),
+            child: Text(
+              'Pour présenter l\'app à un client : produits, stock et ventes d\'exemple, supprimables en un geste.',
+              style: TextStyle(fontSize: 12, color: context.pal.muted),
             ),
           ),
           const SizedBox(height: 24),
