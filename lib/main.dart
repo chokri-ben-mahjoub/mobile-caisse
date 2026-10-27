@@ -6,6 +6,7 @@ import 'data/backup_service.dart';
 import 'data/closing_service.dart';
 import 'data/database.dart';
 import 'data/printer_service.dart';
+import 'data/report_service.dart';
 import 'data/settings_store.dart';
 import 'logic/auth_provider.dart';
 import 'logic/cart_provider.dart';
@@ -28,6 +29,7 @@ Future<void> main() async {
     providers: [
       Provider<BackupService>(create: (_) => BackupService(db)),
       Provider<ClosingService>(create: (_) => ClosingService(db)),
+      Provider<ReportService>(create: (_) => ReportService(db)),
       ChangeNotifierProvider.value(value: auth),
       Provider<PrinterService>(create: (_) => PrinterService()),
       ChangeNotifierProvider(create: (_) => SettingsProvider(store, settings)),

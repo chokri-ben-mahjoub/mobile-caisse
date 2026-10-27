@@ -11,6 +11,7 @@ import '../theme.dart';
 import '../widgets.dart';
 import 'closing_screen.dart';
 import 'return_screen.dart';
+import 'stats_screen.dart';
 
 class HistoryScreen extends StatelessWidget {
   const HistoryScreen({super.key});
@@ -40,6 +41,11 @@ class HistoryScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Historique'),
         actions: [
+          IconButton(
+            tooltip: 'Statistiques et rapport PDF',
+            icon: const Icon(Icons.insights_rounded),
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StatsScreen())),
+          ),
           if (auth.can(Perm.closing))
             IconButton(
               tooltip: 'Clôture de caisse',
