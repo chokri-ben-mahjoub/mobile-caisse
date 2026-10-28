@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import '../data/biometric_service.dart';
 import '../data/models.dart';
 import '../logic/auth_provider.dart';
 import '../logic/settings_provider.dart';
@@ -119,6 +120,28 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   AppUser? _selected;
   Timer? _ticker;
+  bool _bioAvailable = false;
+
+  @override
+  void initState() {
+    super.initState();
+    context.read<BiometricService>().isAvailable().then((v) {
+      if (mounted) setState(() => _bioAvailable = v);
+    });
+  }
+
+  Future<void> _select(AppUser u) async {
+    setState(() => _selected = u);
+    // Ask for the fingerprint straight away when this user turned it on.
+    if (_bioAvailable && context.read<AuthProvider>().bioEnabled(u)) await _useFingerprint();
+  }
+
+  Future<void> _useFingerprint() async {
+    final u = _selected;
+    if (u == null) return;
+    final ok = await context.read<BiometricService>().authenticate('Connexion de ${u.name}');
+    if (ok && mounted) context.read<AuthProvider>().loginBiometric(u);
+  }
 
   @override
   void dispose() {
@@ -174,7 +197,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           color: Colors.transparent,
                           child: InkWell(
                             borderRadius: BorderRadius.circular(20),
-                            onTap: () => setState(() => _selected = u),
+                            onTap: () => _select(u),
                             child: Ink(
                               padding: const EdgeInsets.all(14),
                               decoration: BoxDecoration(color: pal.card, borderRadius: BorderRadius.circular(20), boxShadow: pal.shadow),
@@ -208,6 +231,15 @@ class _LoginScreenState extends State<LoginScreen> {
                         return ok;
                       },
                     ),
+                    if (_bioAvailable && auth.bioEnabled(_selected!) && locked == 0) ...[
+                      const SizedBox(height: 6),
+                      FilledButton.tonalIcon(
+                        onPressed: _useFingerprint,
+                        icon: const Icon(Icons.fingerprint_rounded, size: 26),
+                        label: const Text('Utiliser l\'empreinte'),
+                        style: FilledButton.styleFrom(minimumSize: const Size(220, 50)),
+                      ),
+                    ],
                     const SizedBox(height: 8),
                     TextButton.icon(
                       onPressed: () => setState(() => _selected = null),

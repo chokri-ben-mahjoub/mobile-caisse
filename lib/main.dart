@@ -5,6 +5,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
 
 import 'data/backup_service.dart';
+import 'data/biometric_service.dart';
 import 'data/closing_service.dart';
 import 'data/database.dart';
 import 'data/printer_service.dart';
@@ -37,6 +38,7 @@ Future<void> main() async {
       Provider<ReportService>(create: (_) => ReportService(db)),
       ChangeNotifierProvider.value(value: auth),
       Provider<PrinterService>(create: (_) => PrinterService()),
+      Provider<BiometricService>(create: (_) => BiometricService()),
       ChangeNotifierProvider(create: (_) => SettingsProvider(store, settings)),
       ChangeNotifierProvider(create: (_) => CartProvider(db)),
       ChangeNotifierProvider(create: (_) => ProductsProvider(db)),

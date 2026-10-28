@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../data/backup_service.dart';
+import '../../data/biometric_service.dart';
+import '../../data/models.dart';
 import '../../data/printer_service.dart';
 import '../../data/settings_store.dart';
 import '../../logic/auth_provider.dart';
@@ -180,6 +182,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  bool _bioAvailable = false;
+
+  @override
+  void initState() {
+    super.initState();
+    context.read<BiometricService>().isAvailable().then((v) {
+      if (mounted) setState(() => _bioAvailable = v);
+    });
+  }
+
+  /// Turning it on requires one successful fingerprint check, so it is known to work.
+  Future<void> _toggleBio(AppUser u, bool on) async {
+    final auth = context.read<AuthProvider>();
+    if (on) {
+      final ok = await context.read<BiometricService>().authenticate('Activer la connexion par empreinte');
+      if (!ok) return;
+    }
+    await auth.setBio(u, on);
+    if (mounted) showMsg(context, on ? 'Connexion par empreinte activée' : 'Connexion par empreinte désactivée');
+  }
+
   Widget _accountsSection() {
     final auth = context.watch<AuthProvider>();
     final pal = context.pal;
@@ -206,6 +229,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
           onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const UsersScreen())),
         ),
       if (auth.isOwner) const SizedBox(height: 10),
+      if (_bioAvailable && auth.current != null)
+        Container(
+          margin: const EdgeInsets.only(bottom: 10),
+          decoration: BoxDecoration(color: pal.card, borderRadius: BorderRadius.circular(16), border: Border.all(color: pal.border, width: 1.5)),
+          child: SwitchListTile(
+            secondary: Icon(Icons.fingerprint_rounded, color: pal.accent),
+            title: const Text('Connexion par empreinte', style: TextStyle(fontWeight: FontWeight.w800)),
+            subtitle: const Text('Se connecter avec l\'empreinte du téléphone, le code PIN reste possible'),
+            value: auth.bioEnabled(auth.current!),
+            onChanged: (v) => _toggleBio(auth.current!, v),
+          ),
+        ),
       OutlinedButton.icon(
         icon: const Icon(Icons.lock_outline),
         label: Text('Verrouiller · connecté : ${auth.currentName ?? ''}'),

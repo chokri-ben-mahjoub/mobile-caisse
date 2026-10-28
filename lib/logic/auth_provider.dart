@@ -20,6 +20,9 @@ class AuthProvider extends ChangeNotifier {
   List<AppUser> users = [];
   AppUser? current;
 
+  /// Users who may sign in with the phone's fingerprint instead of the PIN.
+  Set<int> _bio = {};
+
   int _failures = 0;
   DateTime? _lockedUntil;
 
@@ -50,6 +53,7 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> load() async {
+    _bio = await _store.loadBioUsers();
     users = await _db.users();
     if (users.isEmpty) {
       // Migrate the single PIN of earlier versions to an owner account.
@@ -81,6 +85,25 @@ class AuthProvider extends ChangeNotifier {
     }
     notifyListeners();
     return false;
+  }
+
+  bool bioEnabled(AppUser u) => u.id != null && _bio.contains(u.id);
+
+  Future<void> setBio(AppUser u, bool on) async {
+    if (u.id == null) return;
+    on ? _bio.add(u.id!) : _bio.remove(u.id!);
+    await _store.saveBioUsers(_bio);
+    notifyListeners();
+  }
+
+  /// Signs [user] in after the phone confirmed the fingerprint (no PIN, no lockout counting).
+  bool loginBiometric(AppUser user) {
+    if (!bioEnabled(user)) return false;
+    current = user;
+    _failures = 0;
+    _lockedUntil = null;
+    notifyListeners();
+    return true;
   }
 
   void logout() {
@@ -117,6 +140,7 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> deleteUser(AppUser user) async {
+    await setBio(user, false);
     await _db.deleteUser(user.id!);
     await load();
   }

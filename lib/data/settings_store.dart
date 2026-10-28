@@ -82,6 +82,13 @@ class SettingsStore {
     );
   }
 
+  /// Ids of the users who turned on fingerprint sign-in.
+  Future<Set<int>> loadBioUsers() async =>
+      ((await SharedPreferences.getInstance()).getStringList('bioUsers') ?? const <String>[]).map(int.parse).toSet();
+
+  Future<void> saveBioUsers(Set<int> ids) async =>
+      (await SharedPreferences.getInstance()).setStringList('bioUsers', ids.map((e) => '$e').toList());
+
   Future<String?> loadPinHash() async => (await SharedPreferences.getInstance()).getString('pinHash');
 
   Future<void> savePinHash(String? hash) async {
