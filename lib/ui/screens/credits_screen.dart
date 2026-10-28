@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart' hide Text;
 import '../i18n/text.dart';
 import 'package:flutter/services.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -13,6 +12,7 @@ import '../../logic/settings_provider.dart';
 import '../theme.dart';
 import '../widgets.dart';
 import '../i18n/tr.dart';
+import '../i18n/date_fmt.dart';
 
 Color _ageColor(BuildContext context, int days) =>
     days >= 30 ? context.pal.badFg : (days >= 7 ? const Color(0xFFEA580C) : context.pal.goodFg);
@@ -130,7 +130,7 @@ Future<void> showAccountSheet(BuildContext context, String customer) {
         if (matches.isEmpty) return const SizedBox(height: 120);
         final a = matches.first;
         final owes = a.balance > 0.0005;
-        final df = DateFormat('dd/MM/yyyy HH:mm');
+        final df = DateFmt('dd/MM/yyyy HH:mm');
         return SafeArea(
           child: ConstrainedBox(
             constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.85),

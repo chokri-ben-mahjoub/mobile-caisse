@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart' hide Text;
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
 
 import 'package:mob_caisse/data/models.dart';
@@ -21,6 +22,8 @@ Sale _sale() => Sale(
     );
 
 void main() {
+  setUpAll(initializeDateFormatting); // the app does this in main()
+
   test('receipt text lists lines, total and payment', () {
     final t = saleReceiptText(_sale(), const AppSettings(storeName: 'Chez Ali'));
     expect(t, contains('Chez Ali'));

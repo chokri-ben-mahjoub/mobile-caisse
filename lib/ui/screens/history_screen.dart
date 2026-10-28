@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart' hide Text;
 import '../i18n/text.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../data/models.dart';
@@ -16,6 +15,7 @@ import 'quotes_screen.dart';
 import 'return_screen.dart';
 import 'stats_screen.dart';
 import '../i18n/tr.dart';
+import '../i18n/date_fmt.dart';
 
 class HistoryScreen extends StatelessWidget {
   const HistoryScreen({super.key});
@@ -25,7 +25,7 @@ class HistoryScreen extends StatelessWidget {
     final prov = context.watch<SalesProvider>();
     final s = context.watch<SettingsProvider>().settings;
     final auth = context.watch<AuthProvider>();
-    final dayLabel = DateFormat('dd/MM/yyyy').format(prov.day);
+    final dayLabel = DateFmt('dd/MM/yyyy').format(prov.day);
     final pal = context.pal;
 
     // Day total per seller (only when sales carry a seller name).
@@ -136,7 +136,7 @@ class HistoryScreen extends StatelessWidget {
                         child: ListTile(
                           onTap: () => _showSale(context, sale),
                           title: Text(
-                            '${refund ? 'Retour' : 'Ticket'} ${sale.id} · ${DateFormat('HH:mm').format(sale.date)}',
+                            '${refund ? 'Retour' : 'Ticket'} ${sale.id} · ${DateFmt('HH:mm').format(sale.date)}',
                             style: TextStyle(fontWeight: FontWeight.w700, color: refund ? pal.badFg : null),
                           ),
                           subtitle: Text(
@@ -197,7 +197,7 @@ class HistoryScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '${sale.isRefund ? 'Retour' : 'Ticket'} ${sale.id} · ${DateFormat('dd/MM/yyyy HH:mm').format(sale.date)}',
+                '${sale.isRefund ? 'Retour' : 'Ticket'} ${sale.id} · ${DateFmt('dd/MM/yyyy HH:mm').format(sale.date)}',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: sale.isRefund ? pal.badFg : null),
               ),
               if (sale.isRefund && sale.refSaleId != null)

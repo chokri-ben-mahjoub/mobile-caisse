@@ -13,6 +13,7 @@ import '../../logic/settings_provider.dart';
 import '../theme.dart';
 import '../widgets.dart';
 import '../i18n/tr.dart';
+import '../i18n/date_fmt.dart';
 
 /// Activity statistics over a period, with a polished PDF export.
 class StatsScreen extends StatefulWidget {
@@ -76,7 +77,7 @@ class _StatsScreenState extends State<StatsScreen> {
 
   String get _label {
     final (a, b) = _range;
-    final f = DateFormat('dd/MM/yyyy');
+    final f = DateFmt('dd/MM/yyyy');
     final last = b.subtract(const Duration(days: 1));
     return a.year == last.year && a.month == last.month && a.day == last.day ? f.format(a) : '${f.format(a)} → ${f.format(last)}';
   }
@@ -259,7 +260,7 @@ class _StatsScreenState extends State<StatsScreen> {
         Row(children: [
           Text('Évolution', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: pal.ink)),
           const Spacer(),
-          Text(sel == null ? 'Touchez une barre' : '${DateFormat('EEE d MMM').format(sel.day)} · ${s.money(sel.revenue)}',
+          Text(sel == null ? 'Touchez une barre' : '${DateFmt('EEE d MMM').format(sel.day)} · ${s.money(sel.revenue)}',
               style: TextStyle(color: sel == null ? pal.muted : pal.accent, fontWeight: FontWeight.w700, fontSize: 12.5)),
         ]),
         const SizedBox(height: 14),
@@ -293,9 +294,9 @@ class _StatsScreenState extends State<StatsScreen> {
         ),
         const SizedBox(height: 6),
         Row(children: [
-          Text(DateFormat('d MMM').format(days.first.day), style: TextStyle(color: pal.muted, fontSize: 11)),
+          Text(DateFmt('d MMM').format(days.first.day), style: TextStyle(color: pal.muted, fontSize: 11)),
           const Spacer(),
-          Text(DateFormat('d MMM').format(days.last.day), style: TextStyle(color: pal.muted, fontSize: 11)),
+          Text(DateFmt('d MMM').format(days.last.day), style: TextStyle(color: pal.muted, fontSize: 11)),
         ]),
       ]),
     );

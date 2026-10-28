@@ -20,7 +20,7 @@ import '../i18n/tr.dart';
 String saleReceiptText(Sale sale, AppSettings s) {
   final b = StringBuffer()
     ..writeln('🧾 ${s.storeName}')
-    ..writeln('Ticket ${sale.id ?? ''} · ${DateFormat('dd/MM/yyyy HH:mm').format(sale.date)}')
+    ..writeln('Ticket ${sale.id ?? ''} · ${DateFormat('dd/MM/yyyy HH:mm', 'fr_FR').format(sale.date)}')
     ..writeln();
   for (final l in sale.lines.take(15)) {
     b.writeln('• ${l.name} × ${fmtQty(l.qty)}${l.byWeight ? ' kg' : ''} — ${s.money(l.total)}');

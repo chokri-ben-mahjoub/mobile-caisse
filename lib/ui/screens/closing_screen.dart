@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart' hide Text;
 import '../i18n/text.dart';
 import 'package:flutter/services.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../data/closing_service.dart';
@@ -13,8 +12,9 @@ import '../../logic/settings_provider.dart';
 import '../theme.dart';
 import '../widgets.dart';
 import '../i18n/tr.dart';
+import '../i18n/date_fmt.dart';
 
-final _stamp = DateFormat('dd/MM HH:mm');
+final _stamp = DateFmt('dd/MM HH:mm');
 
 double? _parse(String v) => double.tryParse(v.trim().replaceAll(',', '.'));
 
@@ -164,7 +164,7 @@ class _ClosingScreenState extends State<ClosingScreen> {
                 TotalBanner(
                   label: 'TOTAL NET',
                   amount: s.money(sum.net),
-                  sub: 'Depuis ${_stamp.format(_start!)} · arrêté à ${DateFormat('HH:mm').format(_end)}',
+                  sub: 'Depuis ${_stamp.format(_start!)} · arrêté à ${DateFmt('HH:mm').format(_end)}',
                   badge: '${sum.salesCount} vente${sum.salesCount > 1 ? 's' : ''}',
                 ),
                 const SizedBox(height: 14),
@@ -281,7 +281,7 @@ class ClosingDetailScreen extends StatelessWidget {
     final look = _diffLook(context, s, c.difference);
 
     return Scaffold(
-      appBar: AppBar(title: Text(justClosed ? 'Caisse clôturée' : 'Clôture du ${DateFormat('dd/MM/yyyy').format(c.closedAt)}')),
+      appBar: AppBar(title: Text(justClosed ? 'Caisse clôturée' : 'Clôture du ${DateFmt('dd/MM/yyyy').format(c.closedAt)}')),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
         children: [

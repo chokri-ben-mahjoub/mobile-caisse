@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart' hide Text;
 import '../i18n/text.dart';
 import 'package:flutter/services.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -14,6 +13,7 @@ import '../theme.dart';
 import '../widgets.dart';
 import 'new_purchase_screen.dart';
 import '../i18n/tr.dart';
+import '../i18n/date_fmt.dart';
 
 const _orange = Color(0xFFEA580C);
 
@@ -133,7 +133,7 @@ class _PurchaseTile extends StatelessWidget {
             Text(p.supplier, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
             const SizedBox(height: 2),
             Text(
-              '${DateFormat('dd/MM/yyyy').format(p.date)} · ${p.articles} article${p.articles > 1 ? 's' : ''}'
+              '${DateFmt('dd/MM/yyyy').format(p.date)} · ${p.articles} article${p.articles > 1 ? 's' : ''}'
               '${p.invoice.isEmpty ? '' : ' · N° ${p.invoice}'}',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -215,7 +215,7 @@ Future<void> showPurchaseSheet(BuildContext context, Purchase p) {
             child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(p.supplier, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, letterSpacing: -0.4)),
               Text(
-                '${DateFormat('dd/MM/yyyy HH:mm').format(p.date)}${p.invoice.isEmpty ? '' : ' · N° ${p.invoice}'}',
+                '${DateFmt('dd/MM/yyyy HH:mm').format(p.date)}${p.invoice.isEmpty ? '' : ' · N° ${p.invoice}'}',
                 style: TextStyle(color: pal.muted, fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 12),
@@ -262,7 +262,7 @@ Future<void> showSupplierSheet(BuildContext context, String name) {
         final m = prov.accounts.where((a) => a.name.toLowerCase() == name.toLowerCase());
         if (m.isEmpty) return const SizedBox(height: 120);
         final a = m.first;
-        final df = DateFormat('dd/MM/yyyy');
+        final df = DateFmt('dd/MM/yyyy');
         // Purchases and payments merged, newest first.
         final rows = <(DateTime, Widget)>[
           for (final p in a.purchases)

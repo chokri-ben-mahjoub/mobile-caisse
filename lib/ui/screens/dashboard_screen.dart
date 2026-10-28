@@ -2,7 +2,6 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart' hide Text;
 import '../i18n/text.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../data/models.dart';
@@ -25,6 +24,7 @@ import 'credits_screen.dart';
 import 'purchases_screen.dart';
 import 'quotes_screen.dart';
 import 'stats_screen.dart';
+import '../i18n/date_fmt.dart';
 
 /// Tabs the dashboard can jump to.
 enum HomeTarget { cashier, stock, history }
@@ -81,7 +81,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
     final canSeeMoney = auth.can(Perm.history);
     final name = auth.currentName;
-    final date = DateFormat('EEEE d MMMM').format(DateTime.now());
+    final date = DateFmt('EEEE d MMMM').format(DateTime.now());
 
     return RefreshIndicator(
       onRefresh: _load,

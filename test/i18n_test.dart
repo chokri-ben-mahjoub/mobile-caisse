@@ -5,12 +5,15 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 
 import 'package:mob_caisse/ui/i18n/ar_tn.dart';
+import 'package:mob_caisse/ui/i18n/date_fmt.dart';
 import 'package:mob_caisse/ui/i18n/text.dart';
 import 'package:mob_caisse/ui/i18n/tr.dart';
 
 String ar(String s) => Tr.t(s, ar: true);
 
 void main() {
+  setUpAll(initializeDateFormatting); // the app does this in main()
+
   test('French stays untouched', () {
     expect(Tr.t('Encaisser', ar: false), 'Encaisser');
     expect(Tr.t('3 articles'), '3 articles'); // default language is French
@@ -61,6 +64,18 @@ void main() {
   test('every dictionary entry translates to something', () {
     arExact.forEach((k, v) => expect(v.trim(), isNotEmpty, reason: k));
     arPatterns.forEach((k, v) => expect(v.trim(), isNotEmpty, reason: k));
+  });
+
+  test('Arabic dates: Tunisian month names, Western digits, numeric dates kept left to right', () {
+    final d = DateTime(2026, 10, 28, 9, 5);
+    final lri = String.fromCharCode(0x2066), pdi = String.fromCharCode(0x2069);
+    expect(fmtDate('dd/MM/yyyy HH:mm', d, ar: true), '${lri}28/10/2026 09:05$pdi');
+    expect(fmtDate('dd/MM HH:mm', d, ar: true), '${lri}28/10 09:05$pdi');
+    expect(fmtDate('d MMM', d, ar: true), '28 أكتوبر');
+    expect(fmtDate('EEEE d MMMM', d, ar: true), 'الأربعاء 28 أكتوبر');
+    expect(fmtDate('dd MMM yyyy', DateTime(2026, 1, 5), ar: true), '05 جانفي 2026');
+    expect(fmtDate('d MMM', DateTime(2026, 7, 3), ar: true), '3 جويلية');
+    expect(fmtDate('dd/MM/yyyy', d, ar: false), '28/10/2026');
   });
 
   test('Arabic dates (Tunisia) use Western digits', () async {

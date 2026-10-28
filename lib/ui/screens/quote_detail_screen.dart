@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart' hide Text;
 import '../i18n/text.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../data/models.dart';
@@ -14,6 +13,7 @@ import '../theme.dart';
 import '../widgets.dart';
 import 'quote_share_sheet.dart';
 import '../i18n/tr.dart';
+import '../i18n/date_fmt.dart';
 
 Color quoteColor(Quote q, DateTime now) {
   if (q.isExpired(now)) return const Color(0xFF64748B);
@@ -91,7 +91,7 @@ class _QuoteDetailScreenState extends State<QuoteDetailScreen> {
     final pal = context.pal;
     final now = DateTime.now();
     final col = quoteColor(q, now);
-    final df = DateFormat('dd MMM yyyy');
+    final df = DateFmt('dd MMM yyyy');
     final left = q.daysLeft(now);
     final elapsed = q.validDays == 0 ? 1.0 : ((q.validDays - left) / q.validDays).clamp(0.0, 1.0);
 
@@ -350,10 +350,10 @@ class _QuoteDetailScreenState extends State<QuoteDetailScreen> {
               children: [
                 const Text('Suivi', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
                 const SizedBox(height: 14),
-                step('Devis créé', '${DateFormat('dd/MM/yyyy à HH:mm').format(q.date)}${q.seller == null ? '' : ' · ${q.seller}'}', done: true),
+                step('Devis créé', '${DateFmt('dd/MM/yyyy HH:mm').format(q.date)}${q.seller == null ? '' : ' · ${q.seller}'}', done: true),
                 step(
                   q.isExpired(now) ? 'Offre expirée' : 'Offre valable',
-                  'jusqu\'au ${DateFormat('dd/MM/yyyy').format(q.validUntil)}',
+                  'jusqu\'au ${DateFmt('dd/MM/yyyy').format(q.validUntil)}',
                   done: q.isExpired(now),
                   color: q.isExpired(now) ? const Color(0xFF64748B) : const Color(0xFFF59E0B),
                 ),

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart' hide Text;
 import '../i18n/text.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../data/quote.dart';
@@ -11,6 +10,7 @@ import '../../logic/settings_provider.dart';
 import '../theme.dart';
 import 'quote_detail_screen.dart';
 import '../i18n/tr.dart';
+import '../i18n/date_fmt.dart';
 
 /// Saves the current basket as a quote after asking customer, phone, validity and a note.
 /// Returns true when a quote was created (the basket is then emptied).
@@ -142,7 +142,7 @@ class _QuotesScreenState extends State<QuotesScreen> {
     final shown = all.where((q) => _match(q, now)).toList();
     final open = all.where((q) => q.status == QuoteStatus.pending && !q.isExpired(now));
     final won = all.where((q) => q.status == QuoteStatus.accepted);
-    final df = DateFormat('dd/MM/yyyy');
+    final df = DateFmt('dd/MM/yyyy');
 
     Widget stat(String label, String value, Color c) => Expanded(
           child: Container(
