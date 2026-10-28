@@ -258,6 +258,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
               helperText: '{amount} est remplacé par le total',
             ),
           ),
+          header('APPARENCE'),
+          SegmentedButton<String>(
+            showSelectedIcon: false,
+            segments: const [
+              ButtonSegment(value: 'system', icon: Icon(Icons.phone_android_rounded), label: Text('Système')),
+              ButtonSegment(value: 'light', icon: Icon(Icons.light_mode_rounded), label: Text('Clair')),
+              ButtonSegment(value: 'dark', icon: Icon(Icons.dark_mode_rounded), label: Text('Sombre')),
+              ButtonSegment(value: 'auto', icon: Icon(Icons.brightness_auto_rounded), label: Text('Auto')),
+            ],
+            selected: {s.themeMode},
+            onSelectionChanged: (v) => context.read<SettingsProvider>().update(s.copyWith(themeMode: v.first)),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(top: 6, left: 4),
+            child: Text(
+              s.themeMode == 'auto'
+                  ? 'Mode sombre automatique de ${AppSettings.autoDarkStart} h à ${AppSettings.autoDarkEnd} h, clair le reste du temps.'
+                  : 'Auto : sombre le soir (${AppSettings.autoDarkStart} h – ${AppSettings.autoDarkEnd} h), plus reposant pour les yeux au comptoir.',
+              style: TextStyle(color: context.pal.muted, fontSize: 12, fontWeight: FontWeight.w600),
+            ),
+          ),
           header('IMPRIMANTE THERMIQUE 58 MM'),
           Card(
             child: ListTile(

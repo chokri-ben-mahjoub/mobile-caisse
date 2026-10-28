@@ -74,7 +74,7 @@ class _ReturnScreenState extends State<ReturnScreen> {
       reason: _reason,
       restock: _restock,
     );
-    final method = widget.sale.method == PayMethod.cash ? 'espèces' : 'QR code';
+    final method = widget.sale.method == PayMethod.cash ? 'espèces' : widget.sale.method == PayMethod.credit ? 'crédit' : 'QR code';
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(

@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart' show ThemeMode;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AppSettings {
@@ -11,6 +12,9 @@ class AppSettings {
   /// Daily sales target (0 = disabled).
   final double dailyGoal;
 
+  /// `system`, `light`, `dark` or `auto` (dark in the evening, see [isDarkAt]).
+  final String themeMode;
+
   const AppSettings({
     this.storeName = 'Ma boutique',
     this.currency = 'DT',
@@ -19,6 +23,7 @@ class AppSettings {
     this.printerMac = '',
     this.printerName = '',
     this.dailyGoal = 500,
+    this.themeMode = 'system',
   });
 
   AppSettings copyWith({
@@ -29,6 +34,7 @@ class AppSettings {
     String? printerMac,
     String? printerName,
     double? dailyGoal,
+    String? themeMode,
   }) =>
       AppSettings(
         storeName: storeName ?? this.storeName,
@@ -38,7 +44,21 @@ class AppSettings {
         printerMac: printerMac ?? this.printerMac,
         printerName: printerName ?? this.printerName,
         dailyGoal: dailyGoal ?? this.dailyGoal,
+        themeMode: themeMode ?? this.themeMode,
       );
+
+  /// Evening dark mode runs from this hour (inclusive) to [autoDarkEnd] (exclusive) the next morning.
+  static const autoDarkStart = 19;
+  static const autoDarkEnd = 7;
+
+  static bool isDarkAt(DateTime t) => t.hour >= autoDarkStart || t.hour < autoDarkEnd;
+
+  ThemeMode resolveThemeMode(DateTime now) => switch (themeMode) {
+        'light' => ThemeMode.light,
+        'dark' => ThemeMode.dark,
+        'auto' => isDarkAt(now) ? ThemeMode.dark : ThemeMode.light,
+        _ => ThemeMode.system,
+      };
 
   String money(double v) => '${v.toStringAsFixed(decimals).replaceAll('.', ',')} $currency';
 
@@ -58,6 +78,7 @@ class SettingsStore {
       printerMac: sp.getString('printerMac') ?? '',
       printerName: sp.getString('printerName') ?? '',
       dailyGoal: sp.getDouble('dailyGoal') ?? d.dailyGoal,
+      themeMode: sp.getString('themeMode') ?? d.themeMode,
     );
   }
 
@@ -81,5 +102,6 @@ class SettingsStore {
     await sp.setString('printerMac', s.printerMac);
     await sp.setString('printerName', s.printerName);
     await sp.setDouble('dailyGoal', s.dailyGoal);
+    await sp.setString('themeMode', s.themeMode);
   }
 }

@@ -10,6 +10,7 @@ import '../../logic/settings_provider.dart';
 import '../theme.dart';
 import '../widgets.dart';
 import 'closing_screen.dart';
+import 'credits_screen.dart';
 import 'quotes_screen.dart';
 import 'return_screen.dart';
 import 'stats_screen.dart';
@@ -42,6 +43,11 @@ class HistoryScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Historique'),
         actions: [
+          IconButton(
+            tooltip: 'Crédit clients',
+            icon: const Icon(Icons.account_balance_wallet_rounded),
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CreditsScreen())),
+          ),
           IconButton(
             tooltip: 'Devis',
             icon: const Icon(Icons.description_rounded),
@@ -134,7 +140,7 @@ class HistoryScreen extends StatelessWidget {
                           subtitle: Text(
                             '${sale.itemCount} article${sale.itemCount > 1 ? 's' : ''}'
                             '${refund && sale.refSaleId != null ? ' · ticket ${sale.refSaleId}' : ''}'
-                            ' · ${sale.method == PayMethod.cash ? 'Espèces' : 'QR code'}'
+                            ' · ${payMethodLabel(sale.method)}'
                             '${sale.seller != null ? ' · ${sale.seller}' : ''}',
                           ),
                           trailing: Text(s.money(sale.total),

@@ -5,6 +5,7 @@ import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
 
 import 'models.dart';
+import 'credit.dart';
 import 'quote.dart';
 
 /// Local SQLite storage: products + sales. Works fully offline.
@@ -42,7 +43,7 @@ class AppDatabase {
 
   static Future<Database> _openAt(String path) => openDatabase(
       path,
-      version: 7,
+      version: 8,
       onConfigure: (db) => db.execute('PRAGMA foreign_keys = ON'),
       onCreate: _create,
       onUpgrade: (db, oldV, _) async {
@@ -76,6 +77,7 @@ class AppDatabase {
           await db.execute("UPDATE users SET perms = perms | 96 WHERE role = 'manager'");
         }
         if (oldV < 7) await _createQuotes(db);
+        if (oldV < 8) await _createCredits(db);
       },
     );
 
@@ -147,12 +149,25 @@ class AppDatabase {
     await _createUsers(db);
     await _createClosings(db);
     await _createQuotes(db);
+    await _createCredits(db);
   }
 
   static Future<void> _createQuotes(Database db) => db.execute('CREATE TABLE quotes('
       'id INTEGER PRIMARY KEY AUTOINCREMENT, date TEXT NOT NULL, valid_days INTEGER NOT NULL, '
       "customer TEXT NOT NULL DEFAULT '', phone TEXT NOT NULL DEFAULT '', note TEXT NOT NULL DEFAULT '', "
       "seller TEXT, status TEXT NOT NULL DEFAULT 'pending', discount_type TEXT, discount_value REAL, lines TEXT NOT NULL)");
+
+  static Future<void> _createCredits(Database db) => db.execute('CREATE TABLE credits('
+      'id INTEGER PRIMARY KEY AUTOINCREMENT, customer TEXT NOT NULL COLLATE NOCASE, phone TEXT NOT NULL DEFAULT '', '
+      'amount REAL NOT NULL, date TEXT NOT NULL, sale_id INTEGER, note TEXT NOT NULL DEFAULT '')');
+
+  // ---- credits (customer ledger: amount > 0 = owed, < 0 = payment) ----
+  Future<int> insertCredit(CreditEntry e) => _db.insert('credits', e.toMap());
+
+  Future<List<CreditEntry>> credits() async =>
+      (await _db.query('credits', orderBy: 'date DESC, id DESC')).map(CreditEntry.fromMap).toList();
+
+  Future<void> deleteCredit(int id) => _db.delete('credits', where: 'id = ?', whereArgs: [id]);
 
   // ---- quotes ----
   Future<int> insertQuote(Quote q) => _db.insert('quotes', q.toMap());

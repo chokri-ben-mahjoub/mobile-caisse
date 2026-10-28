@@ -172,7 +172,9 @@ class SaleLine {
       );
 }
 
-enum PayMethod { cash, qr }
+enum PayMethod { cash, qr, credit }
+
+String payMethodLabel(PayMethod m) => switch (m) { PayMethod.cash => 'Espèces', PayMethod.qr => 'QR code', PayMethod.credit => 'Crédit' };
 
 enum SaleKind { sale, refund }
 

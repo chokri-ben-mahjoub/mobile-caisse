@@ -175,6 +175,7 @@ class _ClosingScreenState extends State<ClosingScreen> {
                     const Divider(height: 18),
                     _row(context, 'Espèces', s.money(sum.cash)),
                     _row(context, 'QR code', s.money(sum.qr)),
+                    if ((sum.net - sum.cash - sum.qr).abs() > 0.0005) _row(context, 'À crédit', s.money(sum.net - sum.cash - sum.qr)),
                     _row(context, 'Bénéfice', s.money(sum.profit)),
                     if (sum.bySeller.isNotEmpty) ...[
                       const Divider(height: 18),

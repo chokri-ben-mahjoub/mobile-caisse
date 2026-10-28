@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
@@ -7,6 +9,7 @@ import 'data/closing_service.dart';
 import 'data/database.dart';
 import 'data/printer_service.dart';
 import 'data/report_service.dart';
+import 'logic/credits_provider.dart';
 import 'logic/quotes_provider.dart';
 import 'data/settings_store.dart';
 import 'logic/auth_provider.dart';
@@ -38,21 +41,47 @@ Future<void> main() async {
       ChangeNotifierProvider(create: (_) => ProductsProvider(db)),
       ChangeNotifierProvider(create: (_) => SalesProvider(db)),
       ChangeNotifierProvider(create: (_) => QuotesProvider(db)),
+      ChangeNotifierProvider(create: (_) => CreditsProvider(db)),
     ],
     child: const CaisseApp(),
   ));
 }
 
-class CaisseApp extends StatelessWidget {
+class CaisseApp extends StatefulWidget {
   const CaisseApp({super.key});
 
   @override
-  Widget build(BuildContext context) => MaterialApp(
-        title: 'Caisse POS',
-        debugShowCheckedModeBanner: false,
-        theme: buildTheme(),
-        darkTheme: buildTheme(Brightness.dark),
-        themeMode: ThemeMode.system,
-        home: const AppShell(),
-      );
+  State<CaisseApp> createState() => _CaisseAppState();
+}
+
+class _CaisseAppState extends State<CaisseApp> {
+  Timer? _tick;
+
+  @override
+  void initState() {
+    super.initState();
+    // Re-evaluate the evening dark mode while the app stays open.
+    _tick = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _tick?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final mode = context.select<SettingsProvider, String>((p) => p.settings.themeMode);
+    return MaterialApp(
+      title: 'Caisse POS',
+      debugShowCheckedModeBanner: false,
+      theme: buildTheme(),
+      darkTheme: buildTheme(Brightness.dark),
+      themeMode: AppSettings(themeMode: mode).resolveThemeMode(DateTime.now()),
+      home: const AppShell(),
+    );
+  }
 }

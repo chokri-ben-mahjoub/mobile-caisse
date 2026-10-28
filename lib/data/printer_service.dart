@@ -117,7 +117,7 @@ class PrinterService {
       final change = (sale.received! - sale.total).clamp(0, double.infinity);
       bytes.addAll(g.text('Rendu: ${money(change.toDouble())}', styles: const PosStyles(align: PosAlign.right)));
     }
-    bytes.addAll(g.text(sale.method == PayMethod.cash ? 'Paiement: especes' : 'Paiement: QR code',
+    bytes.addAll(g.text(sale.method == PayMethod.cash ? 'Paiement: especes' : sale.method == PayMethod.credit ? 'Paiement: a credit' : 'Paiement: QR code',
         styles: const PosStyles(align: PosAlign.right)));
     bytes.addAll(g.feed(1));
     bytes.addAll(g.text(sale.isRefund ? 'A bientot !' : 'Merci de votre visite !',

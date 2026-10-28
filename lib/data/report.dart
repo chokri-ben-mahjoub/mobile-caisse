@@ -145,7 +145,7 @@ class Report {
       profit += s.profit;
       if (s.method == PayMethod.cash) {
         cash += s.total;
-      } else {
+      } else if (s.method == PayMethod.qr) {
         qr += s.total;
       }
       final ds = byDay[DateTime(s.date.year, s.date.month, s.date.day)];
