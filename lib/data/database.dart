@@ -83,6 +83,9 @@ class AppDatabase {
       },
     );
 
+  /// Opens (and creates / upgrades) the database at [path]; used by tests.
+  static Future<AppDatabase> openAt(String path) async => AppDatabase._(await _openAt(path), path);
+
   static Future<AppDatabase> open() async {
     final path = await _defaultPath();
     return AppDatabase._(await _openAt(path), path);
@@ -161,8 +164,8 @@ class AppDatabase {
       "seller TEXT, status TEXT NOT NULL DEFAULT 'pending', discount_type TEXT, discount_value REAL, lines TEXT NOT NULL)");
 
   static Future<void> _createCredits(Database db) => db.execute('CREATE TABLE credits('
-      'id INTEGER PRIMARY KEY AUTOINCREMENT, customer TEXT NOT NULL COLLATE NOCASE, phone TEXT NOT NULL DEFAULT '', '
-      'amount REAL NOT NULL, date TEXT NOT NULL, sale_id INTEGER, note TEXT NOT NULL DEFAULT '')');
+      'id INTEGER PRIMARY KEY AUTOINCREMENT, customer TEXT NOT NULL COLLATE NOCASE, '
+      "phone TEXT NOT NULL DEFAULT '', amount REAL NOT NULL, date TEXT NOT NULL, sale_id INTEGER, note TEXT NOT NULL DEFAULT '')");
 
   static Future<void> _createPurchases(Database db) async {
     await db.execute('CREATE TABLE purchases('
