@@ -29,6 +29,8 @@ class CartScreen extends StatefulWidget {
 
 class _CartScreenState extends State<CartScreen> {
   bool _showCatalog = true;
+  int _mult = 1;
+  (String, double)? _last;
   String _q = '';
   final _controller = MobileScannerController(
     detectionSpeed: DetectionSpeed.noDuplicates,
@@ -152,9 +154,25 @@ class _CartScreenState extends State<CartScreen> {
     if (p.byWeight) {
       await _addWeighed(p);
     } else {
-      context.read<CartProvider>().add(p);
+      final n = _mult.toDouble();
+      context.read<CartProvider>().add(p, qty: n);
+      SystemSound.play(SystemSoundType.click);
+      setState(() {
+        _last = (p.barcode, n);
+        _mult = 1;
+      });
       _announceAdded(p);
     }
+  }
+
+  void _undoLast() {
+    final l = _last;
+    if (l == null) return;
+    final cart = context.read<CartProvider>();
+    final left = cart.qtyOf(l.$1) - l.$2;
+    HapticFeedback.mediumImpact();
+    cart.setQty(l.$1, left);
+    setState(() => _last = null);
   }
 
   Future<void> _addWeighed(Product p) async {
@@ -816,6 +834,34 @@ class _CartScreenState extends State<CartScreen> {
             ),
           ),
         if (_showCatalog && catalog.isNotEmpty)
+          SizedBox(
+            height: 50,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+              children: [
+                for (final n in const [1, 2, 3, 5, 10])
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: ChoiceChip(
+                      label: Text('×$n', style: const TextStyle(fontWeight: FontWeight.w900)),
+                      selected: _mult == n,
+                      onSelected: (_) {
+                        HapticFeedback.selectionClick();
+                        setState(() => _mult = n);
+                      },
+                    ),
+                  ),
+                if (_last != null)
+                  ActionChip(
+                    avatar: const Icon(Icons.undo_rounded, size: 18),
+                    label: const Text('Annuler'),
+                    onPressed: _undoLast,
+                  ),
+              ],
+            ),
+          ),
+        if (_showCatalog && catalog.isNotEmpty)
           ConstrainedBox(
             constraints: const BoxConstraints(maxHeight: 214),
             child: SingleChildScrollView(
@@ -1187,7 +1233,7 @@ class _ViewfinderPainter extends CustomPainter {
 
 /// Big one-tap tile of the quick-access grid: tap adds one, long press removes
 /// one, and the badge shows what is already in the basket.
-class _QuickTile extends StatelessWidget {
+class _QuickTile extends StatefulWidget {
   const _QuickTile({
     required this.product,
     required this.width,
@@ -1205,55 +1251,101 @@ class _QuickTile extends StatelessWidget {
   final VoidCallback? onLongPress;
 
   @override
+  State<_QuickTile> createState() => _QuickTileState();
+}
+
+class _QuickTileState extends State<_QuickTile> {
+  static const _hues = [
+    Color(0xFF3B82F6), Color(0xFF8B5CF6), Color(0xFFEC4899), Color(0xFFF97316),
+    Color(0xFF10B981), Color(0xFF06B6D4), Color(0xFFEAB308), Color(0xFFEF4444),
+  ];
+  bool _down = false;
+
+  @override
   Widget build(BuildContext context) {
     final pal = context.pal;
-    final active = inCart > 0;
-    return SizedBox(
-      width: width,
-      height: 72,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Positioned.fill(
-            child: Material(
-              color: active ? pal.accent.withValues(alpha: 0.14) : pal.card,
-              borderRadius: BorderRadius.circular(16),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(16),
-                onTap: onTap,
-                onLongPress: onLongPress,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(product.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14)),
-                      const SizedBox(height: 2),
-                      Text('$price${product.byWeight ? '/kg' : ''}',
-                          style: TextStyle(color: pal.accent, fontWeight: FontWeight.w800, fontSize: 13)),
-                    ],
+    final p = widget.product;
+    final hue = _hues[p.name.codeUnits.fold(0, (a, b) => a + b) % _hues.length];
+    final active = widget.inCart > 0;
+    return AnimatedScale(
+      scale: _down ? 0.94 : 1,
+      duration: const Duration(milliseconds: 90),
+      child: SizedBox(
+        width: widget.width,
+        height: 76,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Positioned.fill(
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 160),
+                decoration: BoxDecoration(
+                  color: active ? hue.withValues(alpha: 0.16) : pal.card,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: active ? hue : Colors.transparent, width: 1.6),
+                  boxShadow: pal.shadow,
+                ),
+                child: Material(
+                  type: MaterialType.transparency,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(18),
+                    onTap: widget.onTap,
+                    onLongPress: widget.onLongPress,
+                    onHighlightChanged: (v) => setState(() => _down = v),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(10, 8, 8, 8),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Row(children: [
+                            Container(
+                              width: 22,
+                              height: 22,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(colors: [hue, hue.withValues(alpha: 0.65)]),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: p.byWeight
+                                  ? const Icon(Icons.scale_rounded, size: 13, color: Colors.white)
+                                  : Text(p.name.isEmpty ? '?' : p.name.characters.first.toUpperCase(),
+                                      style: const TextStyle(
+                                          color: Colors.white, fontWeight: FontWeight.w900, fontSize: 12)),
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(p.name,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
+                            ),
+                          ]),
+                          const SizedBox(height: 6),
+                          Text('${widget.price}${p.byWeight ? '/kg' : ''}',
+                              style: TextStyle(color: hue, fontWeight: FontWeight.w900, fontSize: 15)),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-          if (active)
-            Positioned(
-              top: -6,
-              right: -4,
-              child: IgnorePointer(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                  decoration: BoxDecoration(color: pal.accent, borderRadius: BorderRadius.circular(10)),
-                  child: Text(fmtQty(inCart, unit: product.byWeight ? product.unit : ''),
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 12)),
+            if (active)
+              Positioned(
+                top: -7,
+                right: -4,
+                child: IgnorePointer(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(color: hue, borderRadius: BorderRadius.circular(10)),
+                    child: Text(fmtQty(widget.inCart, unit: p.byWeight ? p.unit : ''),
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 12)),
+                  ),
                 ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
