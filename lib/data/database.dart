@@ -6,6 +6,7 @@ import 'package:sqflite/sqflite.dart';
 
 import 'models.dart';
 import 'credit.dart';
+import 'purchase.dart';
 import 'quote.dart';
 
 /// Local SQLite storage: products + sales. Works fully offline.
@@ -43,7 +44,7 @@ class AppDatabase {
 
   static Future<Database> _openAt(String path) => openDatabase(
       path,
-      version: 8,
+      version: 9,
       onConfigure: (db) => db.execute('PRAGMA foreign_keys = ON'),
       onCreate: _create,
       onUpgrade: (db, oldV, _) async {
@@ -78,6 +79,7 @@ class AppDatabase {
         }
         if (oldV < 7) await _createQuotes(db);
         if (oldV < 8) await _createCredits(db);
+        if (oldV < 9) await _createPurchases(db);
       },
     );
 
@@ -150,6 +152,7 @@ class AppDatabase {
     await _createClosings(db);
     await _createQuotes(db);
     await _createCredits(db);
+    await _createPurchases(db);
   }
 
   static Future<void> _createQuotes(Database db) => db.execute('CREATE TABLE quotes('
@@ -160,6 +163,39 @@ class AppDatabase {
   static Future<void> _createCredits(Database db) => db.execute('CREATE TABLE credits('
       'id INTEGER PRIMARY KEY AUTOINCREMENT, customer TEXT NOT NULL COLLATE NOCASE, phone TEXT NOT NULL DEFAULT '', '
       'amount REAL NOT NULL, date TEXT NOT NULL, sale_id INTEGER, note TEXT NOT NULL DEFAULT '')');
+
+  static Future<void> _createPurchases(Database db) async {
+    await db.execute('CREATE TABLE purchases('
+        'id INTEGER PRIMARY KEY AUTOINCREMENT, date TEXT NOT NULL, supplier TEXT NOT NULL COLLATE NOCASE, '
+        "phone TEXT NOT NULL DEFAULT '', invoice TEXT NOT NULL DEFAULT '', paid REAL NOT NULL DEFAULT 0, "
+        "note TEXT NOT NULL DEFAULT '', lines TEXT NOT NULL)");
+    await db.execute('CREATE TABLE supplier_payments('
+        'id INTEGER PRIMARY KEY AUTOINCREMENT, supplier TEXT NOT NULL COLLATE NOCASE, '
+        "phone TEXT NOT NULL DEFAULT '', amount REAL NOT NULL, date TEXT NOT NULL, note TEXT NOT NULL DEFAULT '')");
+  }
+
+  // ---- supplier purchases ----
+  /// Saves a goods receipt, adds each line to the product's stock (starting to track it)
+  /// and takes the purchase price as the product's new cost.
+  Future<int> insertPurchase(Purchase p) => _db.transaction((txn) async {
+        final id = await txn.insert('purchases', p.toMap());
+        for (final l in p.lines) {
+          await txn.rawUpdate(
+              'UPDATE products SET stock = COALESCE(stock, 0) + ?, cost = CASE WHEN ? > 0 THEN ? ELSE cost END WHERE barcode = ?',
+              [l.qty, l.cost, l.cost, l.barcode]);
+        }
+        return id;
+      });
+
+  Future<List<Purchase>> purchases() async =>
+      (await _db.query('purchases', orderBy: 'date DESC, id DESC')).map(Purchase.fromMap).toList();
+
+  Future<int> insertSupplierPayment(SupplierPayment p) => _db.insert('supplier_payments', p.toMap());
+
+  Future<List<SupplierPayment>> supplierPayments() async =>
+      (await _db.query('supplier_payments', orderBy: 'date DESC, id DESC')).map(SupplierPayment.fromMap).toList();
+
+  Future<void> deleteSupplierPayment(int id) => _db.delete('supplier_payments', where: 'id = ?', whereArgs: [id]);
 
   // ---- credits (customer ledger: amount > 0 = owed, < 0 = payment) ----
   Future<int> insertCredit(CreditEntry e) => _db.insert('credits', e.toMap());

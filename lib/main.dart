@@ -10,6 +10,7 @@ import 'data/database.dart';
 import 'data/printer_service.dart';
 import 'data/report_service.dart';
 import 'logic/credits_provider.dart';
+import 'logic/purchases_provider.dart';
 import 'logic/quotes_provider.dart';
 import 'data/settings_store.dart';
 import 'logic/auth_provider.dart';
@@ -42,6 +43,7 @@ Future<void> main() async {
       ChangeNotifierProvider(create: (_) => SalesProvider(db)),
       ChangeNotifierProvider(create: (_) => QuotesProvider(db)),
       ChangeNotifierProvider(create: (_) => CreditsProvider(db)),
+      ChangeNotifierProvider(create: (_) => PurchasesProvider(db)),
     ],
     child: const CaisseApp(),
   ));

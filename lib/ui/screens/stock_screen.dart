@@ -8,6 +8,7 @@ import '../../logic/settings_provider.dart';
 import '../theme.dart';
 import '../widgets.dart';
 import 'product_form_screen.dart';
+import 'purchases_screen.dart';
 
 enum _Filter { all, low, out, untracked }
 
@@ -213,6 +214,12 @@ class _StockScreenState extends State<StockScreen> {
                   ),
                 ),
               ),
+              FilledButton.tonalIcon(
+                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PurchasesScreen())),
+                icon: const Icon(Icons.local_shipping_rounded, size: 18),
+                label: const Text('Achats'),
+              ),
+              const SizedBox(width: 10),
               Text(
                 '${fmtQty(sum.units)} unités',
                 style: TextStyle(
