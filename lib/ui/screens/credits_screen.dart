@@ -198,7 +198,7 @@ Future<void> _confirmDelete(BuildContext context, CreditsProvider prov, CreditEn
       title: const Text('Annuler ce paiement ?'),
       actions: [
         TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Non')),
-        FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Annuler le paiement')),
+        FilledButton(style: FilledButton.styleFrom(minimumSize: const Size(100, 44)), onPressed: () => Navigator.pop(ctx, true), child: const Text('Annuler le paiement')),
       ],
     ),
   );
@@ -220,6 +220,7 @@ Future<void> _pay(BuildContext context, CreditAccount a, AppSettings s) async {
       actions: [
         TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
         FilledButton(
+          style: FilledButton.styleFrom(minimumSize: const Size(100, 44)),
           onPressed: () => Navigator.pop(ctx, double.tryParse(c.text.replaceAll(',', '.')) ?? 0),
           child: const Text('Encaisser'),
         ),

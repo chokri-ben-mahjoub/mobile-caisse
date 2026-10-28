@@ -96,7 +96,7 @@ class _SaleSuccessScreenState extends State<SaleSuccessScreen> with TickerProvid
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, c.text), child: const Text('WhatsApp')),
+          FilledButton(style: FilledButton.styleFrom(minimumSize: const Size(100, 44)), onPressed: () => Navigator.pop(ctx, c.text), child: const Text('WhatsApp')),
         ],
       ),
     );

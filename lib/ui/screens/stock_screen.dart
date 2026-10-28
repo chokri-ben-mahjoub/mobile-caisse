@@ -206,28 +206,34 @@ class _StockScreenState extends State<StockScreen> {
           padding: const EdgeInsets.fromLTRB(20, 14, 16, 10),
           child: Row(
             children: [
-              const Expanded(
-                child: Text(
-                  'Stock',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -0.5,
-                  ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Stock',
+                      maxLines: 1,
+                      style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, letterSpacing: -0.5),
+                    ),
+                    Text(
+                      '${fmtQty(sum.units)} unités',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: context.pal.muted, fontWeight: FontWeight.w700, fontSize: 13),
+                    ),
+                  ],
                 ),
               ),
+              const SizedBox(width: 10),
               FilledButton.tonalIcon(
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size(0, 44),
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
+                ),
                 onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PurchasesScreen())),
                 icon: const Icon(Icons.local_shipping_rounded, size: 18),
                 label: const Text('Achats'),
-              ),
-              const SizedBox(width: 10),
-              Text(
-                '${fmtQty(sum.units)} unités',
-                style: TextStyle(
-                  color: context.pal.muted,
-                  fontWeight: FontWeight.w700,
-                ),
               ),
             ],
           ),

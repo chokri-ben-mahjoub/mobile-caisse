@@ -344,7 +344,7 @@ Future<void> _confirmRemove(BuildContext context, PurchasesProvider prov, Suppli
       title: const Text('Annuler ce règlement ?'),
       actions: [
         TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Non')),
-        FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Annuler le règlement')),
+        FilledButton(style: FilledButton.styleFrom(minimumSize: const Size(100, 44)), onPressed: () => Navigator.pop(ctx, true), child: const Text('Annuler le règlement')),
       ],
     ),
   );
@@ -371,6 +371,7 @@ Future<void> _pay(BuildContext context, SupplierAccount a, AppSettings s) async 
       actions: [
         TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
         FilledButton(
+          style: FilledButton.styleFrom(minimumSize: const Size(100, 44)),
           onPressed: () => Navigator.pop(ctx, double.tryParse(c.text.replaceAll(',', '.')) ?? 0),
           child: const Text('Enregistrer'),
         ),

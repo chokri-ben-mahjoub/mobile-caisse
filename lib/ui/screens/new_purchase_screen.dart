@@ -179,6 +179,11 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
                   child: Text('Produits reçus', style: TextStyle(color: pal.muted, fontWeight: FontWeight.w900, fontSize: 12, letterSpacing: 1)),
                 ),
                 FilledButton.tonalIcon(
+                  style: FilledButton.styleFrom(
+                  minimumSize: const Size(0, 44),
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
+                ),
                   onPressed: _addProduct,
                   icon: const Icon(Icons.add_rounded, size: 18),
                   label: const Text('Ajouter'),

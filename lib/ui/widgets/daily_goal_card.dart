@@ -40,6 +40,7 @@ class _DailyGoalCardState extends State<DailyGoalCard> {
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
           FilledButton(
+            style: FilledButton.styleFrom(minimumSize: const Size(100, 44)),
             onPressed: () => Navigator.pop(ctx, double.tryParse(c.text.replaceAll(',', '.')) ?? 0),
             child: const Text('Enregistrer'),
           ),

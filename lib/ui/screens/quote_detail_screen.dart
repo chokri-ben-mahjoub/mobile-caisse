@@ -54,7 +54,7 @@ class _QuoteDetailScreenState extends State<QuoteDetailScreen> {
           content: const Text('Le panier actuel sera remplacé par les articles du devis.'),
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
-            FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Remplacer')),
+            FilledButton(style: FilledButton.styleFrom(minimumSize: const Size(100, 44)), onPressed: () => Navigator.pop(ctx, true), child: const Text('Remplacer')),
           ],
         ),
       );
@@ -75,7 +75,7 @@ class _QuoteDetailScreenState extends State<QuoteDetailScreen> {
         content: Text('${q.number} sera définitivement supprimé.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Supprimer')),
+          FilledButton(style: FilledButton.styleFrom(minimumSize: const Size(100, 44)), onPressed: () => Navigator.pop(ctx, true), child: const Text('Supprimer')),
         ],
       ),
     );
