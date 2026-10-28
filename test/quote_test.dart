@@ -1,12 +1,16 @@
 import 'dart:io';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
 import 'package:mob_caisse/data/models.dart';
 import 'package:mob_caisse/data/pdf_quote.dart';
 import 'package:mob_caisse/data/quote.dart';
+import 'package:mob_caisse/data/quote_share.dart';
 import 'package:mob_caisse/data/settings_store.dart';
+import 'package:mob_caisse/ui/screens/quote_share_sheet.dart';
+import 'package:mob_caisse/ui/theme.dart';
 
 Quote _quote({QuoteStatus status = QuoteStatus.pending, DateTime? date}) => Quote(
       id: 7,
@@ -26,6 +30,23 @@ Quote _quote({QuoteStatus status = QuoteStatus.pending, DateTime? date}) => Quot
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  test('phone numbers become WhatsApp-ready', () {
+    expect(QuoteShare.internationalNumber('20 123 456'), '21620123456');
+    expect(QuoteShare.internationalNumber('+33 6 12 34 56 78'), '33612345678');
+    expect(QuoteShare.internationalNumber('0021620123456'), '21620123456');
+    expect(QuoteShare.internationalNumber('  '), isNull);
+  });
+
+  test('share message lists lines, total and validity', () {
+    final m = QuoteShare(_quote(), const AppSettings(storeName: 'Chez Sami')).message();
+    expect(m, contains('Bonjour Ali Ben Salah'));
+    expect(m, contains('DV-2026-0007'));
+    expect(m, contains('• Eau minérale × 10 — 8,000 DT'));
+    expect(m, contains('• Tomates × 2,5 kg — 4,500 DT'));
+    expect(m, contains('TOTAL : 11,250 DT'));
+    expect(m, contains("Valable jusqu'au 04/11/2026"));
+  });
 
   test('quote totals, number and validity', () {
     final q = _quote();
@@ -51,6 +72,8 @@ void main() {
     expect(back.total, 11.25);
   });
 
+  shareSheetTests();
+
   testWidgets('quote pdf builds', (tester) async {
     await tester.runAsync(() async {
       await initializeDateFormatting('fr_FR');
@@ -60,5 +83,32 @@ void main() {
       await f.parent.create(recursive: true);
       await f.writeAsBytes(bytes);
     });
+  });
+}
+
+void shareSheetTests() {
+  testWidgets('share sheet fits a narrow phone', (tester) async {
+    tester.view.physicalSize = const Size(720, 1400);
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(MaterialApp(
+      theme: ThemeData(extensions: const [AppPalette.light]),
+      home: Builder(
+        builder: (ctx) => Scaffold(
+          body: Center(
+            child: ElevatedButton(
+              onPressed: () => showQuoteShareSheet(ctx, QuoteShare(_quote(), const AppSettings(storeName: 'Chez Sami'))),
+              child: const Text('open'),
+            ),
+          ),
+        ),
+      ),
+    ));
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+    expect(find.text('WhatsApp'), findsOneWidget);
+    expect(find.text('Télécharger'), findsOneWidget);
+    expect(find.text('Copier le message'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 }

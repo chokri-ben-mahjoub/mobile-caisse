@@ -50,6 +50,8 @@ dependencies:
   crypto: ^3.0.8
   barcode_widget: ^2.0.4
   pdf: ^3.13.1
+  printing: ^5.14.2
+  url_launcher: ^6.3.2
 
 dev_dependencies:
   flutter_test:

@@ -1,18 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import 'package:share_plus/share_plus.dart';
 
 import '../../data/models.dart';
-import '../../data/pdf_quote.dart';
-import '../../data/pdf_report.dart';
 import '../../data/quote.dart';
+import '../../data/quote_share.dart';
 import '../../logic/cart_provider.dart';
 import '../../logic/quotes_provider.dart';
 import '../../logic/settings_provider.dart';
 import '../nav.dart';
 import '../theme.dart';
 import '../widgets.dart';
+import 'quote_share_sheet.dart';
 
 Color quoteColor(Quote q, DateTime now) {
   if (q.isExpired(now)) return const Color(0xFF64748B);
@@ -35,29 +34,13 @@ class QuoteDetailScreen extends StatefulWidget {
 }
 
 class _QuoteDetailScreenState extends State<QuoteDetailScreen> {
-  bool _busy = false;
-
   Quote _live(BuildContext context) {
     final list = context.watch<QuotesProvider>().quotes;
     return list.firstWhere((x) => x.id == widget.quote.id, orElse: () => widget.quote);
   }
 
-  Future<void> _share(Quote q) async {
-    setState(() => _busy = true);
-    try {
-      final s = context.read<SettingsProvider>().settings;
-      final bytes = await PdfQuote.build(quote: q, settings: s);
-      final f = await PdfReport.save(bytes, 'devis-${q.number}.pdf');
-      await SharePlus.instance.share(ShareParams(
-        files: [XFile(f.path, mimeType: 'application/pdf')],
-        subject: 'Devis ${q.number}',
-      ));
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Export impossible : $e')));
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
+  void _send(Quote q) =>
+      showQuoteShareSheet(context, QuoteShare(q, context.read<SettingsProvider>().settings));
 
   Future<void> _convert(Quote q) async {
     final cart = context.read<CartProvider>();
@@ -183,9 +166,9 @@ class _QuoteDetailScreenState extends State<QuoteDetailScreen> {
         title: Text(q.number),
         actions: [
           IconButton(
-            tooltip: 'Partager en PDF',
-            icon: const Icon(Icons.picture_as_pdf_rounded),
-            onPressed: _busy ? null : () => _share(q),
+            tooltip: 'Envoyer le devis',
+            icon: const Icon(Icons.send_rounded),
+            onPressed: () => _send(q),
           ),
           PopupMenuButton<String>(
             onSelected: (v) async {
@@ -408,11 +391,9 @@ class _QuoteDetailScreenState extends State<QuoteDetailScreen> {
           ),
           const SizedBox(height: 10),
           OutlinedButton.icon(
-            onPressed: _busy ? null : () => _share(q),
-            icon: _busy
-                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                : const Icon(Icons.share_rounded),
-            label: const Text('Partager le devis (PDF)'),
+            onPressed: () => _send(q),
+            icon: const Icon(Icons.send_rounded),
+            label: const Text('Envoyer · WhatsApp, e-mail, PDF'),
             style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(52)),
           ),
         ],
