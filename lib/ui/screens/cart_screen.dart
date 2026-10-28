@@ -14,6 +14,7 @@ import '../../logic/settings_provider.dart';
 import '../../data/settings_store.dart';
 import '../theme.dart';
 import '../widgets.dart';
+import '../widgets/quick_keypad.dart';
 import 'closing_screen.dart';
 import 'payment_screen.dart';
 import 'product_form_screen.dart';
@@ -656,6 +657,11 @@ class _CartScreenState extends State<CartScreen> {
                 onPressed: () => setState(() => _cameraOn = !_cameraOn),
               ),
               SoftIconButton(
+                icon: Icons.dialpad_rounded,
+                tooltip: 'Clavier de prix (saisie rapide)',
+                onPressed: () => QuickKeypad.show(context),
+              ),
+              SoftIconButton(
                 icon: Icons.add_shopping_cart_rounded,
                 tooltip: 'Article libre (sans code-barres)',
                 onPressed: _addFreeArticle,
@@ -783,26 +789,39 @@ class _CartScreenState extends State<CartScreen> {
             ),
           ),
         if (favorites.isNotEmpty)
-          SizedBox(
-            height: 52,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 188),
+            child: SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-              children: [
-                for (final f in favorites)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: ActionChip(
-                      avatar: Icon(
-                        f.byWeight ? Icons.scale_rounded : Icons.bolt_rounded,
-                        size: 18,
-                        color: context.pal.accent,
-                      ),
-                      label: Text('${f.name} · ${s.money(f.price)}${f.byWeight ? '/kg' : ''}'),
-                      onPressed: () => _quickAdd(f),
-                    ),
-                  ),
-              ],
+              child: LayoutBuilder(
+                builder: (ctx, c) {
+                  const gap = 8.0;
+                  final w = (c.maxWidth - gap * 2) / 3;
+                  return Wrap(
+                    spacing: gap,
+                    runSpacing: gap,
+                    children: [
+                      for (final f in favorites)
+                        _QuickTile(
+                          product: f,
+                          width: w,
+                          price: s.money(f.price),
+                          inCart: cart.qtyOf(f.barcode),
+                          onTap: () {
+                            HapticFeedback.selectionClick();
+                            _quickAdd(f);
+                          },
+                          onLongPress: f.byWeight || cart.qtyOf(f.barcode) <= 0
+                              ? null
+                              : () {
+                                  HapticFeedback.mediumImpact();
+                                  cart.decrement(f.barcode);
+                                },
+                        ),
+                    ],
+                  );
+                },
+              ),
             ),
           ),
         Padding(
@@ -1137,4 +1156,79 @@ class _ViewfinderPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+
+/// Big one-tap tile of the quick-access grid: tap adds one, long press removes
+/// one, and the badge shows what is already in the basket.
+class _QuickTile extends StatelessWidget {
+  const _QuickTile({
+    required this.product,
+    required this.width,
+    required this.price,
+    required this.inCart,
+    required this.onTap,
+    this.onLongPress,
+  });
+
+  final Product product;
+  final double width;
+  final String price;
+  final double inCart;
+  final VoidCallback onTap;
+  final VoidCallback? onLongPress;
+
+  @override
+  Widget build(BuildContext context) {
+    final pal = context.pal;
+    final active = inCart > 0;
+    return SizedBox(
+      width: width,
+      height: 72,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned.fill(
+            child: Material(
+              color: active ? pal.accent.withValues(alpha: 0.14) : pal.card,
+              borderRadius: BorderRadius.circular(16),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(16),
+                onTap: onTap,
+                onLongPress: onLongPress,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(product.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14)),
+                      const SizedBox(height: 2),
+                      Text('$price${product.byWeight ? '/kg' : ''}',
+                          style: TextStyle(color: pal.accent, fontWeight: FontWeight.w800, fontSize: 13)),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          if (active)
+            Positioned(
+              top: -6,
+              right: -4,
+              child: IgnorePointer(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                  decoration: BoxDecoration(color: pal.accent, borderRadius: BorderRadius.circular(10)),
+                  child: Text(fmtQty(inCart, unit: product.byWeight ? product.unit : ''),
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 12)),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
 }
