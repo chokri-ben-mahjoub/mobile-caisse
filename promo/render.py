@@ -277,7 +277,7 @@ def logo(size):
 PW, PH = 620, 1280
 SW, SH = 568, 1228
 
-ITEMS = [("Eau min\u00e9rale 1.5L", 0.8), ("Baguette", 0.25), ("Jus d'orange", 2.2), ("Chocolat noir", 1.5)]
+ITEMS = [("Eau min\u00e9rale 1.5L", 0.8), ("Baguette", 0.25), ("Jus d'orange", 2.2), ("Biscuits", 1.5)]
 
 
 def money(v):
@@ -312,8 +312,8 @@ def barcode_img():
 
 CATALOG = [
     ("Eau min\u00e9rale", 0.8, (59, 130, 246)), ("Baguette", 0.25, (249, 115, 22)), ("Jus d'orange", 2.2, (234, 179, 8)),
-    ("Chocolat noir", 1.5, (139, 92, 246)), ("Lait 1L", 1.35, (6, 182, 212)), ("Caf\u00e9", 3.2, (236, 72, 153)),
-    ("Yaourt", 0.6, (16, 185, 129)), ("Biscuits", 1.9, (239, 68, 68)), ("Tomates /kg", 1.8, (34, 197, 94)),
+    ("Biscuits", 1.5, (239, 68, 68)), ("Lait 1L", 1.35, (6, 182, 212)), ("Caf\u00e9", 3.2, (236, 72, 153)),
+    ("Yaourt", 0.6, (16, 185, 129)), ("Chocolat noir", 1.9, (139, 92, 246)), ("Tomates /kg", 1.8, (34, 197, 94)),
 ]
 # which catalogue tile each scanned/tapped item comes from, and when it lands (seconds since screen start)
 ADD_AT = [0.35, 0.75, 1.3, 1.45]
@@ -544,6 +544,113 @@ def phone(layer, cx, cy, scale, screen, alpha=1.0, tilt_shift=0):
     put(layer, p, cx, cy, scale, alpha)
 
 
+# ----------------------------------------------------- products on the table
+@lru_cache(None)
+def product_img(kind):
+    """Small flat illustrations of real shop articles (2x supersampled)."""
+    w, h = (300, 300) if kind == "baguette" else (200, 270)
+    im = _sprite(w, h)
+    d = ImageDraw.Draw(im)
+    k = SS
+    if kind == "biscuits":
+        d.rounded_rectangle([10 * k, 20 * k, 190 * k, 262 * k], 22 * k, fill=(220, 38, 38, 255))
+        d.polygon([(10 * k, 30 * k), (30 * k, 4 * k), (50 * k, 30 * k), (70 * k, 4 * k), (90 * k, 30 * k), (110 * k, 4 * k),
+                   (130 * k, 30 * k), (150 * k, 4 * k), (170 * k, 30 * k), (190 * k, 4 * k), (190 * k, 40 * k), (10 * k, 40 * k)],
+                  fill=(190, 24, 24, 255))
+        d.rounded_rectangle([10 * k, 100 * k, 190 * k, 190 * k], 0, fill=(251, 191, 36, 255))
+        for cx, cy in [(70, 146), (130, 146)]:
+            d.ellipse([(cx - 34) * k, (cy - 34) * k, (cx + 34) * k, (cy + 34) * k], fill=(180, 110, 50, 255))
+            d.ellipse([(cx - 28) * k, (cy - 28) * k, (cx + 28) * k, (cy + 28) * k], fill=(205, 140, 75, 255))
+            for dx, dy in [(-10, -8), (9, -10), (0, 10), (-12, 10), (13, 8)]:
+                d.ellipse([(cx + dx - 4) * k, (cy + dy - 4) * k, (cx + dx + 4) * k, (cy + dy + 4) * k], fill=(90, 50, 25, 255))
+        d.text((100 * k, 70 * k), "BISCUITS", font=font(BLK, 26 * k), fill=(255, 255, 255, 255), anchor="mm")
+        d.text((100 * k, 230 * k), "CHOCO", font=font(BOLD, 22 * k), fill=(255, 235, 200, 255), anchor="mm")
+    elif kind == "eau":
+        d.rounded_rectangle([62 * k, 6 * k, 138 * k, 40 * k], 8 * k, fill=(37, 99, 235, 255))
+        d.rounded_rectangle([52 * k, 34 * k, 148 * k, 262 * k], 36 * k, fill=(186, 230, 253, 255), outline=(125, 190, 235, 255), width=3 * k)
+        d.rounded_rectangle([54 * k, 110 * k, 146 * k, 200 * k], 6 * k, fill=(37, 99, 235, 255))
+        d.text((100 * k, 140 * k), "EAU", font=font(BLK, 30 * k), fill=(255, 255, 255, 255), anchor="mm")
+        d.text((100 * k, 176 * k), "1.5 L", font=font(BOLD, 20 * k), fill=(200, 225, 255, 255), anchor="mm")
+        d.arc([62 * k, 60 * k, 100 * k, 98 * k], 200, 290, fill=(255, 255, 255, 255), width=4 * k)
+    elif kind == "jus":
+        d.polygon([(30 * k, 34 * k), (100 * k, 6 * k), (170 * k, 34 * k)], fill=(249, 115, 22, 255))
+        d.rectangle([30 * k, 34 * k, 170 * k, 262 * k], fill=(251, 146, 60, 255))
+        d.rectangle([140 * k, 34 * k, 170 * k, 262 * k], fill=(234, 108, 20, 255))
+        d.ellipse([52 * k, 92 * k, 128 * k, 168 * k], fill=(253, 186, 60, 255), outline=(255, 237, 160, 255), width=4 * k)
+        d.line([(90 * k, 92 * k), (90 * k, 168 * k)], fill=(255, 237, 160, 255), width=3 * k)
+        d.line([(52 * k, 130 * k), (128 * k, 130 * k)], fill=(255, 237, 160, 255), width=3 * k)
+        d.text((86 * k, 210 * k), "JUS", font=font(BLK, 30 * k), fill=(255, 255, 255, 255), anchor="mm")
+        d.ellipse([112 * k, 70 * k, 156 * k, 96 * k], fill=(34, 197, 94, 255))
+    elif kind == "chocolat":
+        d.rounded_rectangle([30 * k, 10 * k, 170 * k, 262 * k], 16 * k, fill=(109, 40, 217, 255))
+        d.rectangle([30 * k, 70 * k, 170 * k, 96 * k], fill=(226, 232, 240, 255))
+        d.rectangle([30 * k, 180 * k, 170 * k, 206 * k], fill=(226, 232, 240, 255))
+        d.text((100 * k, 134 * k), "CHOCO", font=font(BLK, 26 * k), fill=(255, 255, 255, 255), anchor="mm")
+        for r in range(2):
+            for c in range(3):
+                x0 = (44 + c * 40) * k
+                d.rounded_rectangle([x0, (222 + r * 18) * k, x0 + 32 * k, (236 + r * 18) * k], 3 * k, fill=(92, 51, 23, 255))
+    elif kind == "baguette":
+        d.rounded_rectangle([14 * k, 100 * k, 286 * k, 196 * k], 48 * k, fill=(217, 160, 82, 255))
+        d.rounded_rectangle([20 * k, 106 * k, 280 * k, 180 * k], 42 * k, fill=(235, 185, 105, 255))
+        for x in range(54, 264, 52):
+            d.line([(x * k, 118 * k), ((x + 22) * k, 170 * k)], fill=(176, 118, 52, 255), width=7 * k)
+    return _down(im)
+
+
+PROD_X = {"biscuits": 150, "eau": 360, "baguette": 580, "jus": 800, "chocolat": 950}
+TABLE_Y = 1565
+
+
+@lru_cache(None)
+def table_img():
+    h = H - TABLE_Y
+    arr = np.zeros((h, W, 4), np.uint8)
+    rng = np.random.default_rng(8)
+    for y in range(h):
+        f = y / h
+        base = np.array([150 - 50 * f, 98 - 34 * f, 52 - 20 * f])
+        arr[y, :, :3] = base
+        arr[y, :, 3] = 255
+    for _ in range(150):
+        y = int(rng.integers(8, h))
+        x0 = int(rng.integers(0, W))
+        ln = int(rng.integers(120, 600))
+        arr[y, x0:x0 + ln, :3] = np.clip(arr[y, x0:x0 + ln, :3].astype(int) + int(rng.integers(-16, 14)), 0, 255)
+    arr[:6, :, :3] = (214, 160, 98)  # lit front edge
+    return Image.fromarray(arr, "RGBA")
+
+
+def products_on_table(L, st, ts):
+    """Draw the table + articles; scanned ones lift towards the phone camera, tapped ones bounce."""
+    put(L, table_img(), 0, TABLE_Y, anchor="tl")
+    order = ["biscuits", "eau", "baguette", "jus", "chocolat"]
+    scan = {"eau": ADD_AT[0], "baguette": ADD_AT[1]}
+    tap = {"jus": ADD_AT[2], "biscuits": ADD_AT[3]}
+    for kind in order:
+        img = product_img(kind)
+        x0 = PROD_X[kind]
+        y0 = TABLE_Y + 120
+        x, y, sc, rot = x0, y0, 1.0, 0
+        if kind in scan:
+            t0 = scan[kind]
+            up = e_out(prog(st, t0 - 0.3, 0.3))
+            dn = e_io(prog(st, t0, 0.25))
+            hgt = up * (1 - dn)
+            x = x0 + (W / 2 - x0) * hgt
+            y = y0 + (700 - y0) * hgt - 60 * math.sin(math.pi * hgt)
+            sc = 1.0 - 0.28 * hgt
+        elif kind in tap:
+            bump = math.sin(math.pi * prog(st, tap[kind], 0.3))
+            y -= 46 * bump
+            sc = 1.0 + 0.08 * bump
+        # soft shadow on the table
+        sh = rrect(int(img.width * 0.8), 22, 11, (0, 0, 0, 90))
+        put(L, sh, x0, y0 + img.height * 0.5 + 6, 1.0 - 0.3 * (y0 - y) / 500 if y < y0 else 1.0, 0.8)
+        put(L, img, x, y, sc)
+
+
+
 # ---------------------------------------------------------------- confetti
 def confetti(layer, t, t0, cx, cy, n=70):
     if t < t0:
@@ -603,21 +710,23 @@ def scene2(L, t):
     ts = t + S2_START  # absolute time
     # phone slides in
     pin = e_out(prog(t, 0.0, 0.7))
-    cy = 1040 + (1 - pin) * 900
+    cy = 920 + (1 - pin) * 900
     scan_t = ts - (CS[1] - 0.0)
     # which screen?
     pay_open = CS[2] + 0.35
     if ts < pay_open:
         scr = screen_cart(max(0, ts - CS[1] + 0.15))
     else:
-        sw = prog(ts, pay_open, 0.35)
+        sw = prog(ts, pay_open, 0.15)
         pay = screen_pay(ts - pay_open, CS[3] - pay_open + 0.15)
         scr = pay
         if sw < 1:  # quick cross-fade from list screen
             old = screen_cart(3)
             scr = Image.blend(old, pay, e_io(sw))
-    ph_scale = 0.95 + 0.012 * math.sin(ts * 1.5)
+    ph_scale = 0.86 + 0.008 * math.sin(ts * 1.5)
     phone(L, W / 2, cy, ph_scale, scr)
+    if pin > 0.05:
+        products_on_table(L, max(0.0, ts - CS[1] + 0.15), ts)
     # captions
     caps = [(CS[1] - 0.12, "SCANNEZ", WHITE), (CS[2] - 0.1, "ENCAISSEZ", CYAN), (CS[3] - 0.1, "C'EST TERMIN\u00c9 !", GREEN)]
     cur = None
@@ -635,8 +744,8 @@ def scene2(L, t):
     if tp > 0:
         put(L, rrect(10, 10, 5, (0, 0, 0, 0)), 0, 0)
         tk = ticket_img()
-        put(L, tk, W / 2 + 330, 1380 - 150 * e_out(tp) + 40, 0.72, clamp(tp * 3))
-    confetti(L, ts, CS[3] + 0.1, W / 2, 1000)
+        put(L, tk, W / 2 + 330, 1250 - 120 * e_out(tp) + 40, 0.66, clamp(tp * 3))
+    confetti(L, ts, CS[3] + 0.1, W / 2, 900)
 
 
 def scene3(L, t):
