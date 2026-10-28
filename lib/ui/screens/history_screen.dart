@@ -10,6 +10,7 @@ import '../../logic/settings_provider.dart';
 import '../theme.dart';
 import '../widgets.dart';
 import 'closing_screen.dart';
+import 'quotes_screen.dart';
 import 'return_screen.dart';
 import 'stats_screen.dart';
 
@@ -41,6 +42,11 @@ class HistoryScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Historique'),
         actions: [
+          IconButton(
+            tooltip: 'Devis',
+            icon: const Icon(Icons.description_rounded),
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const QuotesScreen())),
+          ),
           IconButton(
             tooltip: 'Statistiques et rapport PDF',
             icon: const Icon(Icons.insights_rounded),

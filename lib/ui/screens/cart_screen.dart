@@ -18,6 +18,7 @@ import '../widgets/quick_keypad.dart';
 import '../widgets/swipe_to_pay.dart';
 import 'closing_screen.dart';
 import 'payment_screen.dart';
+import 'quotes_screen.dart';
 import 'product_form_screen.dart';
 
 class CartScreen extends StatefulWidget {
@@ -994,6 +995,15 @@ class _CartScreenState extends State<CartScreen> {
                         await cart.holdCurrent();
                         _flash('Ticket mis en attente');
                       },
+                    ),
+                  ),
+                if (!cart.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: ActionChip(
+                      avatar: const Icon(Icons.description_rounded, size: 18),
+                      label: const Text('Créer un devis'),
+                      onPressed: () => createQuoteFromCart(context),
                     ),
                   ),
                 if (!cart.isEmpty && auth.can(Perm.discount))

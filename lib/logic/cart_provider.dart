@@ -128,6 +128,15 @@ class CartProvider extends ChangeNotifier {
     await refreshHeld();
   }
 
+  /// Replaces the current cart by [lines] (e.g. a quote turned into a sale).
+  void loadLines(List<SaleLine> newLines, Discount? d) {
+    _lines
+      ..clear()
+      ..addEntries(newLines.map((l) => MapEntry(l.barcode, l)));
+    discount = d;
+    notifyListeners();
+  }
+
   Future<void> deleteHeld(HeldCart h) async {
     await _db.deleteHeld(h.id);
     await refreshHeld();

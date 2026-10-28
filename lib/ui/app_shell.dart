@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../data/models.dart';
 import '../logic/auth_provider.dart';
 import '../logic/products_provider.dart';
+import 'nav.dart';
 import 'pin_lock.dart';
 import 'screens/cart_screen.dart';
 import 'screens/history_screen.dart';
@@ -45,10 +46,16 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    cashierRequest.addListener(_goCashier);
+  }
+
+  void _goCashier() {
+    if (mounted) setState(() => _tab = _Tab.cashier);
   }
 
   @override
   void dispose() {
+    cashierRequest.removeListener(_goCashier);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
