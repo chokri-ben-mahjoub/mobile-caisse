@@ -11,7 +11,9 @@ import '../theme.dart';
 /// "Objectif du jour": animated ring with today's sales vs the daily target.
 /// Tap to change the target; a small celebration plays when it is reached.
 class DailyGoalCard extends StatefulWidget {
-  const DailyGoalCard({super.key});
+  const DailyGoalCard({super.key, this.padding = const EdgeInsets.fromLTRB(16, 10, 16, 0)});
+
+  final EdgeInsets padding;
 
   @override
   State<DailyGoalCard> createState() => _DailyGoalCardState();
@@ -67,7 +69,7 @@ class _DailyGoalCardState extends State<DailyGoalCard> {
     final color = reached ? const Color(0xFF12A150) : kBlue;
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+      padding: widget.padding,
       child: Material(
         color: pal.card,
         borderRadius: BorderRadius.circular(20),

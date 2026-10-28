@@ -7,12 +7,15 @@ import '../logic/products_provider.dart';
 import 'nav.dart';
 import 'pin_lock.dart';
 import 'screens/cart_screen.dart';
+import 'screens/dashboard_screen.dart';
 import 'screens/history_screen.dart';
 import 'screens/products_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/stock_screen.dart';
+import 'widgets/floating_nav.dart';
 
 enum _Tab {
+  home('Accueil', Icons.space_dashboard_outlined, Icons.space_dashboard_rounded, null),
   cashier('Caisse', Icons.point_of_sale_outlined, Icons.point_of_sale, null),
   products('Produits', Icons.inventory_2_outlined, Icons.inventory_2, Perm.products),
   stock('Stock', Icons.warehouse_outlined, Icons.warehouse, Perm.stock),
@@ -36,7 +39,7 @@ class AppShell extends StatefulWidget {
 }
 
 class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
-  _Tab _tab = _Tab.cashier;
+  _Tab _tab = _Tab.home;
   DateTime? _pausedAt;
 
   /// Signed-in users are signed out after this long in the background.
@@ -75,6 +78,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
 
   // Only the current tab is built, so the camera is released on other tabs.
   Widget _page(_Tab t) => switch (t) {
+        _Tab.home => DashboardScreen(onGo: _go),
         _Tab.cashier => const CartScreen(),
         _Tab.products => const ProductsScreen(),
         _Tab.stock => const StockScreen(),
@@ -82,11 +86,17 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
         _Tab.settings => const SettingsScreen(),
       };
 
+  void _go(HomeTarget t) => setState(() => _tab = switch (t) {
+        HomeTarget.cashier => _Tab.cashier,
+        HomeTarget.stock => _Tab.stock,
+        HomeTarget.history => _Tab.history,
+      });
+
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
     if (auth.needsLogin) {
-      _tab = _Tab.cashier; // the next user starts on the Caisse
+      _tab = _Tab.home; // the next user starts on the home tab
       // Close any screen still open on top (payment, forms) so it is not left reachable.
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) Navigator.of(context).popUntil((r) => r.isFirst);
@@ -95,28 +105,21 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
     }
 
     final allowed = _Tab.values.where((t) => t.perm == null || auth.can(t.perm!)).toList();
-    if (!allowed.contains(_tab)) _tab = _Tab.cashier;
+    if (!allowed.contains(_tab)) _tab = _Tab.home;
     final low = context.watch<ProductsProvider>().lowCount;
 
     return Scaffold(
       body: SafeArea(child: _page(_tab)),
       bottomNavigationBar: allowed.length > 1
-          ? NavigationBar(
-              selectedIndex: allowed.indexOf(_tab),
-              onDestinationSelected: (i) => setState(() => _tab = allowed[i]),
-              destinations: [
+          ? FloatingNav(
+              selected: allowed.indexOf(_tab),
+              onSelected: (i) => setState(() => _tab = allowed[i]),
+              items: [
                 for (final t in allowed)
-                  NavigationDestination(
-                    icon: _icon(t, t.icon, low),
-                    selectedIcon: _icon(t, t.selectedIcon, low),
-                    label: t.label,
-                  ),
+                  FloatingNavItem(label: t.label, icon: t.icon, selectedIcon: t.selectedIcon, badge: t == _Tab.stock ? low : 0),
               ],
             )
           : null,
     );
   }
-
-  Widget _icon(_Tab t, IconData icon, int low) =>
-      t == _Tab.stock ? Badge(isLabelVisible: low > 0, label: Text('$low'), child: Icon(icon)) : Icon(icon);
 }
