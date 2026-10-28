@@ -1,6 +1,7 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+import '../i18n/text.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:provider/provider.dart';
@@ -18,9 +19,11 @@ import '../widgets/daily_goal_card.dart';
 import '../widgets/quick_keypad.dart';
 import '../widgets/swipe_to_pay.dart';
 import 'closing_screen.dart';
+import 'customer_display_screen.dart';
 import 'payment_screen.dart';
 import 'quotes_screen.dart';
 import 'product_form_screen.dart';
+import '../i18n/tr.dart';
 
 class CartScreen extends StatefulWidget {
   const CartScreen({super.key});
@@ -190,10 +193,10 @@ class _CartScreenState extends State<CartScreen> {
                   padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
                   child: TextField(
                     onChanged: (v) => set(() => _q = v.trim().toLowerCase()),
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       isDense: true,
                       prefixIcon: Icon(Icons.search_rounded),
-                      hintText: 'Chercher un article',
+                      hintText: tr('Chercher un article'),
                     ),
                   ),
                 ),
@@ -356,7 +359,7 @@ class _CartScreenState extends State<CartScreen> {
                     if (ok) Navigator.pop(ctx, v);
                   },
                   style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
-                  decoration: const InputDecoration(labelText: 'Poids', suffixText: 'kg'),
+                  decoration: InputDecoration(labelText: tr('Poids'), suffixText: tr('kg')),
                 ),
                 const SizedBox(height: 10),
                 Wrap(
@@ -416,7 +419,7 @@ class _CartScreenState extends State<CartScreen> {
                 TextField(
                   controller: name,
                   textCapitalization: TextCapitalization.sentences,
-                  decoration: const InputDecoration(labelText: 'Nom (facultatif)', hintText: 'Article'),
+                  decoration: InputDecoration(labelText: tr('Nom (facultatif)'), hintText: tr('Article')),
                 ),
                 const SizedBox(height: 12),
                 Row(
@@ -429,7 +432,7 @@ class _CartScreenState extends State<CartScreen> {
                         keyboardType: const TextInputType.numberWithOptions(decimal: true),
                         inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]'))],
                         onChanged: (_) => setSt(() {}),
-                        decoration: InputDecoration(labelText: 'Prix', suffixText: s.currency),
+                        decoration: InputDecoration(labelText: tr('Prix'), suffixText: s.currency),
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -440,7 +443,7 @@ class _CartScreenState extends State<CartScreen> {
                         keyboardType: const TextInputType.numberWithOptions(decimal: true),
                         inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]'))],
                         onChanged: (_) => setSt(() {}),
-                        decoration: const InputDecoration(labelText: 'Qté'),
+                        decoration: InputDecoration(labelText: tr('Qté')),
                       ),
                     ),
                   ],
@@ -484,6 +487,8 @@ class _CartScreenState extends State<CartScreen> {
         _confirmClear();
       case 'closing':
         Navigator.push(context, MaterialPageRoute(builder: (_) => const ClosingScreen()));
+      case 'customer':
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const CustomerDisplayScreen()));
     }
   }
 
@@ -498,7 +503,7 @@ class _CartScreenState extends State<CartScreen> {
           controller: ctrl,
           autofocus: true,
           keyboardType: TextInputType.number,
-          decoration: const InputDecoration(labelText: 'Code-barres'),
+          decoration: InputDecoration(labelText: tr('Code-barres')),
           onSubmitted: (v) => Navigator.pop(ctx, v),
         ),
         actions: [
@@ -807,32 +812,33 @@ class _CartScreenState extends State<CartScreen> {
                 icon: _cameraOn
                     ? Icons.videocam_rounded
                     : Icons.videocam_off_outlined,
-                tooltip: _cameraOn ? 'Couper la caméra' : 'Activer la caméra',
+                tooltip: tr(_cameraOn ? 'Couper la caméra' : 'Activer la caméra'),
                 onPressed: () => setState(() => _cameraOn = !_cameraOn),
               ),
               SoftIconButton(
                 icon: Icons.grid_view_rounded,
-                tooltip: 'Articles',
+                tooltip: tr('Articles'),
                 onPressed: _openCatalog,
               ),
               SoftIconButton(
                 icon: Icons.dialpad_rounded,
-                tooltip: 'Clavier de prix (saisie rapide)',
+                tooltip: tr('Clavier de prix (saisie rapide)'),
                 onPressed: () => QuickKeypad.show(context),
               ),
               SoftIconButton(
                 icon: Icons.add_shopping_cart_rounded,
-                tooltip: 'Article libre (sans code-barres)',
+                tooltip: tr('Article libre (sans code-barres)'),
                 onPressed: _addFreeArticle,
               ),
               Padding(
                 padding: const EdgeInsets.only(left: 8),
                 child: PopupMenuButton<String>(
-                  tooltip: 'Plus',
+                  tooltip: tr('Plus'),
                   onSelected: _onMenu,
                   itemBuilder: (_) => [
                     const PopupMenuItem(value: 'code', child: Text('Saisir un code-barres')),
                     const PopupMenuItem(value: 'clear', child: Text('Vider le panier')),
+                    const PopupMenuItem(value: 'customer', child: Text('Écran client')),
                     if (auth.can(Perm.closing))
                       const PopupMenuItem(value: 'closing', child: Text('Clôture de caisse')),
                   ],

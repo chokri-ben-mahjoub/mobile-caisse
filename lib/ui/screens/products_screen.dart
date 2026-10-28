@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+import '../i18n/text.dart';
 import 'package:provider/provider.dart';
 
 import '../../data/backup_service.dart';
@@ -8,6 +9,7 @@ import '../theme.dart';
 import '../widgets.dart';
 import '../../logic/settings_provider.dart';
 import 'product_form_screen.dart';
+import '../i18n/tr.dart';
 
 class ProductsScreen extends StatelessWidget {
   const ProductsScreen({super.key});
@@ -60,8 +62,8 @@ class ProductsScreen extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
             child: TextField(
               onChanged: prov.search,
-              decoration: const InputDecoration(
-                hintText: 'Rechercher un nom ou un code',
+              decoration: InputDecoration(
+                hintText: tr('Rechercher un nom ou un code'),
                 prefixIcon: Icon(Icons.search),
               ),
             ),
@@ -70,7 +72,7 @@ class ProductsScreen extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
               child: Align(
-                alignment: Alignment.centerLeft,
+                alignment: AlignmentDirectional.centerStart,
                 child: FilterChip(
                   avatar: Icon(Icons.warning_amber_rounded, size: 18, color: Colors.orange.shade800),
                   label: Text('Stock bas (${prov.lowCount})'),

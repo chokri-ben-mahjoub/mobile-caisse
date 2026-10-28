@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+import '../i18n/text.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
@@ -9,6 +10,7 @@ import '../../logic/quotes_provider.dart';
 import '../../logic/settings_provider.dart';
 import '../theme.dart';
 import 'quote_detail_screen.dart';
+import '../i18n/tr.dart';
 
 /// Saves the current basket as a quote after asking customer, phone, validity and a note.
 /// Returns true when a quote was created (the basket is then emptied).
@@ -41,13 +43,13 @@ Future<bool> createQuoteFromCart(BuildContext context) async {
               TextField(
                 controller: name,
                 textCapitalization: TextCapitalization.words,
-                decoration: const InputDecoration(labelText: 'Nom du client', prefixIcon: Icon(Icons.person_rounded)),
+                decoration: InputDecoration(labelText: tr('Nom du client'), prefixIcon: Icon(Icons.person_rounded)),
               ),
               const SizedBox(height: 10),
               TextField(
                 controller: phone,
                 keyboardType: TextInputType.phone,
-                decoration: const InputDecoration(labelText: 'Téléphone', prefixIcon: Icon(Icons.phone_rounded)),
+                decoration: InputDecoration(labelText: tr('Téléphone'), prefixIcon: Icon(Icons.phone_rounded)),
               ),
               const SizedBox(height: 14),
               Text('Validité', style: TextStyle(color: ctx.pal.muted, fontWeight: FontWeight.w800)),
@@ -63,7 +65,7 @@ Future<bool> createQuoteFromCart(BuildContext context) async {
               TextField(
                 controller: note,
                 maxLines: 2,
-                decoration: const InputDecoration(labelText: 'Remarques (facultatif)', prefixIcon: Icon(Icons.notes_rounded)),
+                decoration: InputDecoration(labelText: tr('Remarques (facultatif)'), prefixIcon: Icon(Icons.notes_rounded)),
               ),
               const SizedBox(height: 16),
               SizedBox(
@@ -176,7 +178,7 @@ class _QuotesScreenState extends State<QuotesScreen> {
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
             child: TextField(
               onChanged: (v) => setState(() => _q = v.trim()),
-              decoration: const InputDecoration(isDense: true, prefixIcon: Icon(Icons.search_rounded), hintText: 'Client, numéro, téléphone'),
+              decoration: InputDecoration(isDense: true, prefixIcon: Icon(Icons.search_rounded), hintText: tr('Client, numéro, téléphone')),
             ),
           ),
           SizedBox(

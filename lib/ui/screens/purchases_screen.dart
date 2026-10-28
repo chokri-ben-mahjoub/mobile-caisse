@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+import '../i18n/text.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -12,6 +13,7 @@ import '../../logic/settings_provider.dart';
 import '../theme.dart';
 import '../widgets.dart';
 import 'new_purchase_screen.dart';
+import '../i18n/tr.dart';
 
 const _orange = Color(0xFFEA580C);
 
@@ -361,10 +363,10 @@ Future<void> _pay(BuildContext context, SupplierAccount a, AppSettings s) async 
           controller: c,
           autofocus: true,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: InputDecoration(labelText: 'Montant payé (${s.currency})', helperText: 'Reste dû : ${s.money(a.balance)}'),
+          decoration: InputDecoration(labelText: tr('Montant payé (${s.currency})'), helperText: tr('Reste dû : ${s.money(a.balance)}')),
         ),
         const SizedBox(height: 8),
-        TextField(controller: note, decoration: const InputDecoration(labelText: 'Note (chèque, virement…)')),
+        TextField(controller: note, decoration: InputDecoration(labelText: tr('Note (chèque, virement…)'))),
       ]),
       actions: [
         TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),

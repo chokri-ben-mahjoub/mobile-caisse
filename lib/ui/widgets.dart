@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+import 'i18n/text.dart';
 
 import 'theme.dart';
 
@@ -49,7 +50,7 @@ class TotalBanner extends StatelessWidget {
               const SizedBox(height: 2),
               FittedBox(
                 fit: BoxFit.scaleDown,
-                alignment: Alignment.centerLeft,
+                alignment: AlignmentDirectional.centerStart,
                 child: Text(
                   amount,
                   style: const TextStyle(

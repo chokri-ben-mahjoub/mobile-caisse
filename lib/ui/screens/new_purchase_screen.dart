@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+import '../i18n/text.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
@@ -9,6 +10,7 @@ import '../../logic/purchases_provider.dart';
 import '../../logic/settings_provider.dart';
 import '../theme.dart';
 import '../widgets.dart';
+import '../i18n/tr.dart';
 
 enum _Pay { full, partial, credit }
 
@@ -137,7 +139,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
                     controller: _supplier,
                     textCapitalization: TextCapitalization.words,
                     onChanged: (_) => setState(() {}),
-                    decoration: const InputDecoration(labelText: 'Nom du fournisseur', prefixIcon: Icon(Icons.storefront_rounded)),
+                    decoration: InputDecoration(labelText: tr('Nom du fournisseur'), prefixIcon: Icon(Icons.storefront_rounded)),
                   ),
                   if (suggestions.isNotEmpty) ...[
                     const SizedBox(height: 8),
@@ -158,14 +160,14 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
                       child: TextField(
                         controller: _phone,
                         keyboardType: TextInputType.phone,
-                        decoration: const InputDecoration(labelText: 'Téléphone', prefixIcon: Icon(Icons.phone_rounded)),
+                        decoration: InputDecoration(labelText: tr('Téléphone'), prefixIcon: Icon(Icons.phone_rounded)),
                       ),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: TextField(
                         controller: _invoice,
-                        decoration: const InputDecoration(labelText: 'N° bon / facture', prefixIcon: Icon(Icons.tag_rounded)),
+                        decoration: InputDecoration(labelText: tr('N° bon / facture'), prefixIcon: Icon(Icons.tag_rounded)),
                       ),
                     ),
                   ]),
@@ -208,7 +210,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
                   background: Container(
                     margin: const EdgeInsets.only(bottom: 10),
                     padding: const EdgeInsets.only(right: 22),
-                    alignment: Alignment.centerRight,
+                    alignment: AlignmentDirectional.centerEnd,
                     decoration: BoxDecoration(color: pal.badBg, borderRadius: BorderRadius.circular(20)),
                     child: Icon(Icons.delete_rounded, color: pal.badFg),
                   ),
@@ -235,7 +237,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
                     controller: _paid,
                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
                     onChanged: (_) => setState(() {}),
-                    decoration: InputDecoration(labelText: 'Montant payé maintenant', suffixText: s.currency),
+                    decoration: InputDecoration(labelText: tr('Montant payé maintenant'), suffixText: s.currency),
                   ),
                 ],
               ],
@@ -303,7 +305,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]'))],
                 onChanged: (_) => setState(() {}),
-                decoration: InputDecoration(labelText: 'Quantité', suffixText: p.unit.isEmpty ? null : p.unit, isDense: true),
+                decoration: InputDecoration(labelText: tr('Quantité'), suffixText: p.unit.isEmpty ? null : p.unit, isDense: true),
               ),
             ),
             const SizedBox(width: 10),
@@ -313,7 +315,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]'))],
                 onChanged: (_) => setState(() {}),
-                decoration: InputDecoration(labelText: 'Prix d\'achat', suffixText: p.unit == 'kg' ? '/kg' : null, isDense: true),
+                decoration: InputDecoration(labelText: tr('Prix d\'achat'), suffixText: p.unit == 'kg' ? '/kg' : null, isDense: true),
               ),
             ),
           ]),
@@ -372,7 +374,7 @@ class _ProductPickerState extends State<_ProductPicker> {
             child: TextField(
               autofocus: true,
               onChanged: (v) => setState(() => _q = v),
-              decoration: const InputDecoration(hintText: 'Nom ou code-barres', prefixIcon: Icon(Icons.search_rounded)),
+              decoration: InputDecoration(hintText: tr('Nom ou code-barres'), prefixIcon: Icon(Icons.search_rounded)),
             ),
           ),
           Expanded(

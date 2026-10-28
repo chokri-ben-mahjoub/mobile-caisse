@@ -15,6 +15,9 @@ class AppSettings {
   /// `system`, `light`, `dark` or `auto` (dark in the evening, see [isDarkAt]).
   final String themeMode;
 
+  /// Interface language: `fr` or `ar` (Tunisian Arabic, right to left).
+  final String language;
+
   const AppSettings({
     this.storeName = 'Ma boutique',
     this.currency = 'DT',
@@ -24,6 +27,7 @@ class AppSettings {
     this.printerName = '',
     this.dailyGoal = 500,
     this.themeMode = 'system',
+    this.language = 'fr',
   });
 
   AppSettings copyWith({
@@ -35,6 +39,7 @@ class AppSettings {
     String? printerName,
     double? dailyGoal,
     String? themeMode,
+    String? language,
   }) =>
       AppSettings(
         storeName: storeName ?? this.storeName,
@@ -45,6 +50,7 @@ class AppSettings {
         printerName: printerName ?? this.printerName,
         dailyGoal: dailyGoal ?? this.dailyGoal,
         themeMode: themeMode ?? this.themeMode,
+        language: language ?? this.language,
       );
 
   /// Evening dark mode runs from this hour (inclusive) to [autoDarkEnd] (exclusive) the next morning.
@@ -79,6 +85,7 @@ class SettingsStore {
       printerName: sp.getString('printerName') ?? '',
       dailyGoal: sp.getDouble('dailyGoal') ?? d.dailyGoal,
       themeMode: sp.getString('themeMode') ?? d.themeMode,
+      language: sp.getString('language') ?? d.language,
     );
   }
 
@@ -110,5 +117,6 @@ class SettingsStore {
     await sp.setString('printerName', s.printerName);
     await sp.setDouble('dailyGoal', s.dailyGoal);
     await sp.setString('themeMode', s.themeMode);
+    await sp.setString('language', s.language);
   }
 }

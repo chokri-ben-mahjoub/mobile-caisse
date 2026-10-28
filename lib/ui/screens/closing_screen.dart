@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+import '../i18n/text.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -11,6 +12,7 @@ import '../../logic/auth_provider.dart';
 import '../../logic/settings_provider.dart';
 import '../theme.dart';
 import '../widgets.dart';
+import '../i18n/tr.dart';
 
 final _stamp = DateFormat('dd/MM HH:mm');
 
@@ -143,12 +145,12 @@ class _ClosingScreenState extends State<ClosingScreen> {
         title: const Text('Clôture de caisse'),
         actions: [
           IconButton(
-            tooltip: 'Actualiser',
+            tooltip: tr('Actualiser'),
             icon: const Icon(Icons.refresh_rounded),
             onPressed: _load,
           ),
           IconButton(
-            tooltip: 'Clôtures précédentes',
+            tooltip: tr('Clôtures précédentes'),
             icon: const Icon(Icons.history_rounded),
             onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ClosingsListScreen())),
           ),
@@ -201,7 +203,7 @@ class _ClosingScreenState extends State<ClosingScreen> {
                     TextField(
                       controller: _note,
                       textCapitalization: TextCapitalization.sentences,
-                      decoration: const InputDecoration(labelText: 'Note (facultatif)'),
+                      decoration: InputDecoration(labelText: tr('Note (facultatif)')),
                     ),
                   ]),
                 ),

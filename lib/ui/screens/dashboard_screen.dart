@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+import '../i18n/text.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
@@ -19,6 +20,7 @@ import '../../logic/settings_provider.dart';
 import '../theme.dart';
 import '../widgets/daily_goal_card.dart';
 import 'closing_screen.dart';
+import 'customer_display_screen.dart';
 import 'credits_screen.dart';
 import 'purchases_screen.dart';
 import 'quotes_screen.dart';
@@ -79,7 +81,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
     final canSeeMoney = auth.can(Perm.history);
     final name = auth.currentName;
-    final date = DateFormat('EEEE d MMMM', 'fr_FR').format(DateTime.now());
+    final date = DateFormat('EEEE d MMMM').format(DateTime.now());
 
     return RefreshIndicator(
       onRefresh: _load,
@@ -159,7 +161,7 @@ class _HeroCard extends StatelessWidget {
               const SizedBox(height: 2),
               FittedBox(
                 fit: BoxFit.scaleDown,
-                alignment: Alignment.centerLeft,
+                alignment: AlignmentDirectional.centerStart,
                 child: Text(value, style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w900)),
               ),
             ]),
@@ -198,7 +200,7 @@ class _HeroCard extends StatelessWidget {
           curve: Curves.easeOutCubic,
           builder: (_, v, _) => FittedBox(
             fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
+            alignment: AlignmentDirectional.centerStart,
             child: Text(settings.money(v),
                 style: const TextStyle(color: Colors.white, fontSize: 44, fontWeight: FontWeight.w900, letterSpacing: -1.5)),
           ),
@@ -302,8 +304,7 @@ class _QuickActions extends StatelessWidget {
         _Action('Stats', Icons.insights_rounded, const [Color(0xFFFB7185), Color(0xFFE11D48)], () => push(const StatsScreen())),
       if (auth.can(Perm.closing))
         _Action('Clôture', Icons.lock_clock_rounded, const [Color(0xFF94A3B8), Color(0xFF475569)], () => push(const ClosingScreen())),
-      if (auth.can(Perm.history))
-        _Action('Historique', Icons.receipt_long_rounded, const [Color(0xFF818CF8), Color(0xFF4338CA)], () => onGo(HomeTarget.history)),
+      _Action('Écran client', Icons.cast_connected_rounded, const [Color(0xFF818CF8), Color(0xFF4338CA)], () => push(const CustomerDisplayScreen())),
     ];
     const perRow = 4;
     final rows = <Widget>[];

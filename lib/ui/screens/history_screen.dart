@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+import '../i18n/text.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
@@ -14,6 +15,7 @@ import 'credits_screen.dart';
 import 'quotes_screen.dart';
 import 'return_screen.dart';
 import 'stats_screen.dart';
+import '../i18n/tr.dart';
 
 class HistoryScreen extends StatelessWidget {
   const HistoryScreen({super.key});
@@ -44,23 +46,23 @@ class HistoryScreen extends StatelessWidget {
         title: const Text('Historique'),
         actions: [
           IconButton(
-            tooltip: 'Crédit clients',
+            tooltip: tr('Crédit clients'),
             icon: const Icon(Icons.account_balance_wallet_rounded),
             onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CreditsScreen())),
           ),
           IconButton(
-            tooltip: 'Devis',
+            tooltip: tr('Devis'),
             icon: const Icon(Icons.description_rounded),
             onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const QuotesScreen())),
           ),
           IconButton(
-            tooltip: 'Statistiques et rapport PDF',
+            tooltip: tr('Statistiques et rapport PDF'),
             icon: const Icon(Icons.insights_rounded),
             onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StatsScreen())),
           ),
           if (auth.can(Perm.closing))
             IconButton(
-              tooltip: 'Clôture de caisse',
+              tooltip: tr('Clôture de caisse'),
               icon: const Icon(Icons.lock_clock_rounded),
               onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ClosingScreen())),
             ),

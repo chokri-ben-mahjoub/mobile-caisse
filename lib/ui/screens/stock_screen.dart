@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+import '../i18n/text.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
@@ -9,6 +10,7 @@ import '../theme.dart';
 import '../widgets.dart';
 import 'product_form_screen.dart';
 import 'purchases_screen.dart';
+import '../i18n/tr.dart';
 
 enum _Filter { all, low, out, untracked }
 
@@ -274,8 +276,8 @@ class _StockScreenState extends State<StockScreen> {
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
           child: TextField(
             onChanged: (v) => setState(() => _query = v),
-            decoration: const InputDecoration(
-              hintText: 'Rechercher un produit',
+            decoration: InputDecoration(
+              hintText: tr('Rechercher un produit'),
               prefixIcon: Icon(Icons.search),
             ),
           ),

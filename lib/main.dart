@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
 
@@ -24,7 +25,7 @@ import 'ui/theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await initializeDateFormatting('fr_FR');
+  await initializeDateFormatting(); // French and Arabic date names
   final db = await AppDatabase.open();
   final store = SettingsStore();
   final settings = await store.load();
@@ -79,12 +80,21 @@ class _CaisseAppState extends State<CaisseApp> {
   @override
   Widget build(BuildContext context) {
     final mode = context.select<SettingsProvider, String>((p) => p.settings.themeMode);
+    final lang = context.select<SettingsProvider, String>((p) => p.settings.language);
+    final ar = lang == 'ar';
     return MaterialApp(
       title: 'Caisse POS',
       debugShowCheckedModeBanner: false,
-      theme: buildTheme(),
-      darkTheme: buildTheme(Brightness.dark),
+      theme: buildTheme(Brightness.light, ar),
+      darkTheme: buildTheme(Brightness.dark, ar),
       themeMode: AppSettings(themeMode: mode).resolveThemeMode(DateTime.now()),
+      locale: Locale(lang),
+      supportedLocales: const [Locale('fr'), Locale('ar')],
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
       home: const AppShell(),
     );
   }

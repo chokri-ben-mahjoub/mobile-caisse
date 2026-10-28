@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+import '../i18n/text.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
@@ -12,6 +13,7 @@ import '../nav.dart';
 import '../theme.dart';
 import '../widgets.dart';
 import 'quote_share_sheet.dart';
+import '../i18n/tr.dart';
 
 Color quoteColor(Quote q, DateTime now) {
   if (q.isExpired(now)) return const Color(0xFF64748B);
@@ -89,7 +91,7 @@ class _QuoteDetailScreenState extends State<QuoteDetailScreen> {
     final pal = context.pal;
     final now = DateTime.now();
     final col = quoteColor(q, now);
-    final df = DateFormat('dd MMM yyyy', 'fr_FR');
+    final df = DateFormat('dd MMM yyyy');
     final left = q.daysLeft(now);
     final elapsed = q.validDays == 0 ? 1.0 : ((q.validDays - left) / q.validDays).clamp(0.0, 1.0);
 
@@ -166,7 +168,7 @@ class _QuoteDetailScreenState extends State<QuoteDetailScreen> {
         title: Text(q.number),
         actions: [
           IconButton(
-            tooltip: 'Envoyer le devis',
+            tooltip: tr('Envoyer le devis'),
             icon: const Icon(Icons.send_rounded),
             onPressed: () => _send(q),
           ),
@@ -229,7 +231,7 @@ class _QuoteDetailScreenState extends State<QuoteDetailScreen> {
                 const SizedBox(height: 2),
                 FittedBox(
                   fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
+                  alignment: AlignmentDirectional.centerStart,
                   child: Text(s.money(q.total),
                       style: const TextStyle(color: Colors.white, fontSize: 42, fontWeight: FontWeight.w900, letterSpacing: -1)),
                 ),

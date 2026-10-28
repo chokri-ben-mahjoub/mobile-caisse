@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+import '../i18n/text.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
@@ -11,6 +12,7 @@ import '../../logic/sales_provider.dart';
 import '../../logic/settings_provider.dart';
 import '../theme.dart';
 import '../widgets.dart';
+import '../i18n/tr.dart';
 
 const _reasons = ['Erreur de caisse', 'Article défectueux', 'Client mécontent', 'Autre'];
 
@@ -216,7 +218,7 @@ class _ReturnScreenState extends State<ReturnScreen> {
             final n = double.tryParse(v.trim().replaceAll(',', '.')) ?? 0;
             setState(() => _qty[l.barcode] = round3(n.clamp(0, left).toDouble()));
           },
-          decoration: const InputDecoration(labelText: 'Poids', suffixText: 'kg', isDense: true),
+          decoration: InputDecoration(labelText: tr('Poids'), suffixText: tr('kg'), isDense: true),
         ),
       );
     }

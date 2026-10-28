@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+import '../i18n/text.dart';
 import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
@@ -14,6 +15,7 @@ import '../../logic/settings_provider.dart';
 import '../theme.dart';
 import '../widgets.dart';
 import 'sale_success_screen.dart';
+import '../i18n/tr.dart';
 
 class PaymentScreen extends StatefulWidget {
   const PaymentScreen({super.key});
@@ -159,7 +161,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             onChanged: (_) => setState(() {}),
             style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
-            decoration: InputDecoration(labelText: 'Montant reçu (facultatif)', suffixText: s.currency),
+            decoration: InputDecoration(labelText: tr('Montant reçu (facultatif)'), suffixText: s.currency),
           ),
           const SizedBox(height: 12),
           Row(
@@ -208,7 +210,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
           enabled: _saved == null,
           textCapitalization: TextCapitalization.words,
           onChanged: (_) => setState(() {}),
-          decoration: const InputDecoration(labelText: 'Nom du client', prefixIcon: Icon(Icons.person_rounded)),
+          decoration: InputDecoration(labelText: tr('Nom du client'), prefixIcon: Icon(Icons.person_rounded)),
         ),
         if (suggestions.isNotEmpty && _saved == null) ...[
           const SizedBox(height: 8),
@@ -228,7 +230,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
           controller: _phone,
           enabled: _saved == null,
           keyboardType: TextInputType.phone,
-          decoration: const InputDecoration(labelText: 'Téléphone (pour la relance WhatsApp)', prefixIcon: Icon(Icons.phone_rounded)),
+          decoration: InputDecoration(labelText: tr('Téléphone (pour la relance WhatsApp)'), prefixIcon: Icon(Icons.phone_rounded)),
         ),
         const SizedBox(height: 14),
         Container(

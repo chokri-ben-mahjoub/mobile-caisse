@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+import '../i18n/text.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -13,6 +14,7 @@ import '../../data/settings_store.dart';
 import '../../logic/settings_provider.dart';
 import '../theme.dart';
 import '../widgets.dart';
+import '../i18n/tr.dart';
 
 /// Plain-text receipt, used for the WhatsApp / SMS receipt.
 String saleReceiptText(Sale sale, AppSettings s) {
@@ -90,7 +92,7 @@ class _SaleSuccessScreenState extends State<SaleSuccessScreen> with TickerProvid
           controller: c,
           autofocus: true,
           keyboardType: TextInputType.phone,
-          decoration: const InputDecoration(labelText: 'Téléphone du client', helperText: 'Vide = choisir un contact dans WhatsApp'),
+          decoration: InputDecoration(labelText: tr('Téléphone du client'), helperText: tr('Vide = choisir un contact dans WhatsApp')),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),

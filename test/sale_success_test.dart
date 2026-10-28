@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
@@ -7,6 +8,7 @@ import 'package:mob_caisse/data/printer_service.dart';
 import 'package:mob_caisse/data/settings_store.dart';
 import 'package:mob_caisse/logic/settings_provider.dart';
 import 'package:mob_caisse/ui/screens/sale_success_screen.dart';
+import 'package:mob_caisse/ui/i18n/tr.dart';
 import 'package:mob_caisse/ui/theme.dart';
 
 Sale _sale() => Sale(
@@ -43,5 +45,34 @@ void main() {
     expect(find.text('2,500 DT'), findsOneWidget); // change to give back
     expect(find.text('Nouvelle vente'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('success screen renders in Tunisian Arabic, right to left, without overflow', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(360, 700));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => SettingsProvider(SettingsStore(), const AppSettings(language: 'ar'))),
+        Provider<PrinterService>(create: (_) => PrinterService()),
+      ],
+      child: MaterialApp(
+        theme: buildTheme(Brightness.light, true),
+        locale: const Locale('ar'),
+        supportedLocales: const [Locale('fr'), Locale('ar')],
+        localizationsDelegates: const [
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        home: SaleSuccessScreen(sale: _sale()),
+      ),
+    ));
+    await tester.pump(const Duration(seconds: 3));
+    expect(find.text('البيعة تقبضت !'), findsOneWidget);
+    expect(find.text('بيعة جديدة'), findsOneWidget);
+    expect(find.text('الباقي للحريف'), findsOneWidget);
+    expect(Directionality.of(tester.element(find.byType(Scaffold))), TextDirection.rtl);
+    expect(tester.takeException(), isNull);
+    Tr.lang = 'fr';
   });
 }

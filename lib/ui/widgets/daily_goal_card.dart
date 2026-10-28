@@ -1,12 +1,14 @@
 import 'dart:math' as math;
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+import '../i18n/text.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../logic/sales_provider.dart';
 import '../../logic/settings_provider.dart';
 import '../theme.dart';
+import '../i18n/tr.dart';
 
 /// "Objectif du jour": animated ring with today's sales vs the daily target.
 /// Tap to change the target; a small celebration plays when it is reached.
@@ -33,7 +35,7 @@ class _DailyGoalCardState extends State<DailyGoalCard> {
           controller: c,
           autofocus: true,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(hintText: 'Ex. 500', helperText: '0 pour désactiver'),
+          decoration: InputDecoration(hintText: tr('Ex. 500'), helperText: tr('0 pour désactiver')),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),

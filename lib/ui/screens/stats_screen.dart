@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+import '../i18n/text.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -11,6 +12,7 @@ import '../../data/settings_store.dart';
 import '../../logic/settings_provider.dart';
 import '../theme.dart';
 import '../widgets.dart';
+import '../i18n/tr.dart';
 
 /// Activity statistics over a period, with a polished PDF export.
 class StatsScreen extends StatefulWidget {
@@ -57,7 +59,7 @@ class _StatsScreenState extends State<StatsScreen> {
         firstDate: DateTime(now.year - 3),
         lastDate: now,
         initialDateRange: DateTimeRange(start: now.subtract(const Duration(days: 6)), end: now),
-        locale: const Locale('fr', 'FR'),
+        locale: Localizations.localeOf(context),
       );
       if (r == null) return;
       final s = DateTime(r.start.year, r.start.month, r.start.day);
@@ -107,7 +109,7 @@ class _StatsScreenState extends State<StatsScreen> {
         title: const Text('Statistiques'),
         actions: [
           IconButton(
-            tooltip: 'Exporter en PDF',
+            tooltip: tr('Exporter en PDF'),
             onPressed: r == null || _exporting ? null : _export,
             icon: _exporting
                 ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5))
@@ -191,7 +193,7 @@ class _StatsScreenState extends State<StatsScreen> {
         const SizedBox(height: 6),
         FittedBox(
           fit: BoxFit.scaleDown,
-          alignment: Alignment.centerLeft,
+          alignment: AlignmentDirectional.centerStart,
           child: Text(s.money(r.net), style: const TextStyle(color: Colors.white, fontSize: 40, fontWeight: FontWeight.w900)),
         ),
         const SizedBox(height: 10),
@@ -221,7 +223,7 @@ class _StatsScreenState extends State<StatsScreen> {
               const SizedBox(height: 8),
               FittedBox(
                 fit: BoxFit.scaleDown,
-                alignment: Alignment.centerLeft,
+                alignment: AlignmentDirectional.centerStart,
                 child: Text(v, style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: color ?? context.pal.ink)),
               ),
               Text(l, style: TextStyle(color: context.pal.muted, fontSize: 12, fontWeight: FontWeight.w600)),
@@ -257,7 +259,7 @@ class _StatsScreenState extends State<StatsScreen> {
         Row(children: [
           Text('Évolution', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: pal.ink)),
           const Spacer(),
-          Text(sel == null ? 'Touchez une barre' : '${DateFormat('EEE d MMM', 'fr_FR').format(sel.day)} · ${s.money(sel.revenue)}',
+          Text(sel == null ? 'Touchez une barre' : '${DateFormat('EEE d MMM').format(sel.day)} · ${s.money(sel.revenue)}',
               style: TextStyle(color: sel == null ? pal.muted : pal.accent, fontWeight: FontWeight.w700, fontSize: 12.5)),
         ]),
         const SizedBox(height: 14),
@@ -291,9 +293,9 @@ class _StatsScreenState extends State<StatsScreen> {
         ),
         const SizedBox(height: 6),
         Row(children: [
-          Text(DateFormat('d MMM', 'fr_FR').format(days.first.day), style: TextStyle(color: pal.muted, fontSize: 11)),
+          Text(DateFormat('d MMM').format(days.first.day), style: TextStyle(color: pal.muted, fontSize: 11)),
           const Spacer(),
-          Text(DateFormat('d MMM', 'fr_FR').format(days.last.day), style: TextStyle(color: pal.muted, fontSize: 11)),
+          Text(DateFormat('d MMM').format(days.last.day), style: TextStyle(color: pal.muted, fontSize: 11)),
         ]),
       ]),
     );

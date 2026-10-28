@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+import '../i18n/text.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
@@ -7,6 +8,7 @@ import '../../logic/auth_provider.dart';
 import '../pin_lock.dart';
 import '../theme.dart';
 import '../widgets.dart';
+import '../i18n/tr.dart';
 
 String _accessSummary(AppUser u) {
   if (u.isOwner) return 'Tous les accès et gestion des utilisateurs';
@@ -35,7 +37,7 @@ class UsersScreen extends StatelessWidget {
             maxLength: 4,
             keyboardType: TextInputType.number,
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            decoration: const InputDecoration(labelText: 'Votre code PIN', counterText: ''),
+            decoration: InputDecoration(labelText: tr('Votre code PIN'), counterText: ''),
           ),
         ]),
         actions: [
@@ -225,7 +227,7 @@ class _UserFormScreenState extends State<UserFormScreen> {
             TextFormField(
               controller: _name,
               textCapitalization: TextCapitalization.words,
-              decoration: const InputDecoration(labelText: 'Nom'),
+              decoration: InputDecoration(labelText: tr('Nom')),
               validator: (v) {
                 final n = (v ?? '').trim();
                 if (n.isEmpty) return 'Nom requis';

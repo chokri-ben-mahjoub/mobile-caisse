@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+import '../i18n/text.dart';
 import 'package:provider/provider.dart';
 
 import '../../data/backup_service.dart';
@@ -15,6 +16,7 @@ import '../theme.dart';
 import '../widgets.dart';
 import 'demo_codes_screen.dart';
 import 'users_screen.dart';
+import '../i18n/tr.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -271,15 +273,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
         children: [
           header('MAGASIN'),
-          TextField(controller: _store, decoration: const InputDecoration(labelText: 'Nom du magasin (sur le ticket)')),
+          TextField(controller: _store, decoration: InputDecoration(labelText: tr('Nom du magasin (sur le ticket)'))),
           const SizedBox(height: 12),
           Row(children: [
-            Expanded(child: TextField(controller: _currency, decoration: const InputDecoration(labelText: 'Devise'))),
+            Expanded(child: TextField(controller: _currency, decoration: InputDecoration(labelText: tr('Devise')))),
             const SizedBox(width: 12),
             Expanded(
               child: DropdownButtonFormField<int>(
                 initialValue: _decimals,
-                decoration: const InputDecoration(labelText: 'Décimales'),
+                decoration: InputDecoration(labelText: tr('Décimales')),
                 items: const [0, 1, 2, 3].map((d) => DropdownMenuItem(value: d, child: Text('$d'))).toList(),
                 onChanged: (v) => setState(() => _decimals = v ?? 3),
               ),
@@ -288,10 +290,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const SizedBox(height: 12),
           TextField(
             controller: _qr,
-            decoration: const InputDecoration(
-              labelText: 'Lien / texte du QR de paiement',
-              helperText: '{amount} est remplacé par le total',
+            decoration: InputDecoration(
+              labelText: tr('Lien / texte du QR de paiement'),
+              helperText: tr('{amount} est remplacé par le total'),
             ),
+          ),
+          header('LANGUE'),
+          SegmentedButton<String>(
+            showSelectedIcon: false,
+            segments: const [
+              ButtonSegment(value: 'fr', label: Text('Français')),
+              ButtonSegment(value: 'ar', label: Text('العربية التونسية')),
+            ],
+            selected: {s.language},
+            onSelectionChanged: (v) => context.read<SettingsProvider>().update(s.copyWith(language: v.first)),
           ),
           header('APPARENCE'),
           SegmentedButton<String>(

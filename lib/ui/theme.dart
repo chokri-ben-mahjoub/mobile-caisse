@@ -81,7 +81,7 @@ extension PaletteX on BuildContext {
   AppPalette get pal => Theme.of(this).extension<AppPalette>()!;
 }
 
-ThemeData buildTheme([Brightness brightness = Brightness.light]) {
+ThemeData buildTheme([Brightness brightness = Brightness.light, bool arabic = false]) {
   final dark = brightness == Brightness.dark;
   final p = dark ? AppPalette.dark : AppPalette.light;
   final primary = dark ? const Color(0xFF3B82F6) : kBlue;
@@ -102,12 +102,13 @@ ThemeData buildTheme([Brightness brightness = Brightness.light]) {
   return ThemeData(
     useMaterial3: true,
     brightness: brightness,
+    fontFamily: arabic ? 'Tajawal' : null,
     colorScheme: scheme,
     scaffoldBackgroundColor: p.bg,
     canvasColor: p.card,
     extensions: [p],
     splashFactory: InkSparkle.splashFactory,
-    textTheme: base.textTheme.apply(bodyColor: p.ink, displayColor: p.ink),
+    textTheme: base.textTheme.apply(bodyColor: p.ink, displayColor: p.ink, fontFamily: arabic ? 'Tajawal' : null),
     appBarTheme: AppBarTheme(
       backgroundColor: Colors.transparent,
       surfaceTintColor: Colors.transparent,

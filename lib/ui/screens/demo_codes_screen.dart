@@ -1,5 +1,6 @@
 import 'package:barcode_widget/barcode_widget.dart' as bw;
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+import '../i18n/text.dart';
 import 'package:provider/provider.dart';
 
 import '../../data/demo_data.dart';

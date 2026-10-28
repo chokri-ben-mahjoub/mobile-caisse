@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+import '../i18n/text.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -11,6 +12,7 @@ import '../../logic/credits_provider.dart';
 import '../../logic/settings_provider.dart';
 import '../theme.dart';
 import '../widgets.dart';
+import '../i18n/tr.dart';
 
 Color _ageColor(BuildContext context, int days) =>
     days >= 30 ? context.pal.badFg : (days >= 7 ? const Color(0xFFEA580C) : context.pal.goodFg);
@@ -213,7 +215,7 @@ Future<void> _pay(BuildContext context, CreditAccount a, AppSettings s) async {
         controller: c,
         autofocus: true,
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
-        decoration: InputDecoration(labelText: 'Montant reçu (${s.currency})', helperText: 'Reste dû : ${s.money(a.balance)}'),
+        decoration: InputDecoration(labelText: tr('Montant reçu (${s.currency})'), helperText: tr('Reste dû : ${s.money(a.balance)}')),
       ),
       actions: [
         TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),

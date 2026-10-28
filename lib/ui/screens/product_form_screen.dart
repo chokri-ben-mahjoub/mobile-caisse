@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+import '../i18n/text.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:provider/provider.dart';
@@ -7,6 +8,7 @@ import '../../data/barcode_utils.dart';
 import '../../data/models.dart';
 import '../../logic/products_provider.dart';
 import '../theme.dart';
+import '../i18n/tr.dart';
 
 /// Add or edit a product. Pops the saved [Product] (null if cancelled).
 class ProductFormScreen extends StatefulWidget {
@@ -86,7 +88,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
               controller: _barcode,
               readOnly: _editing,
               decoration: InputDecoration(
-                labelText: 'Code-barres',
+                labelText: tr('Code-barres'),
                 helperText: _editing ? null : 'Laissez vide pour un produit sans code-barres (code interne)',
                 suffixIcon: _editing
                     ? null
@@ -97,7 +99,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
             TextFormField(
               controller: _name,
               textCapitalization: TextCapitalization.sentences,
-              decoration: const InputDecoration(labelText: 'Nom du produit'),
+              decoration: InputDecoration(labelText: tr('Nom du produit')),
               validator: (v) => (v == null || v.trim().isEmpty) ? 'Nom requis' : null,
             ),
             SwitchListTile(
@@ -165,7 +167,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
                     controller: _minStock,
                     keyboardType: TextInputType.number,
                     inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    decoration: const InputDecoration(labelText: 'Alerte à partir de'),
+                    decoration: InputDecoration(labelText: tr('Alerte à partir de')),
                   ),
                 ),
               ]),
