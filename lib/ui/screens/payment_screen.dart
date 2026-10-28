@@ -13,6 +13,7 @@ import '../../logic/sales_provider.dart';
 import '../../logic/settings_provider.dart';
 import '../theme.dart';
 import '../widgets.dart';
+import 'sale_success_screen.dart';
 
 class PaymentScreen extends StatefulWidget {
   const PaymentScreen({super.key});
@@ -79,10 +80,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
   Future<void> _finish() async {
     if (_working || !_creditReady()) return;
-    await _ensureSaved();
+    final sale = await _ensureSaved();
     if (!mounted) return;
-    Navigator.pop(context);
-    showMsg(context, 'Vente enregistrée');
+    Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => SaleSuccessScreen(sale: sale)));
   }
 
   @override
