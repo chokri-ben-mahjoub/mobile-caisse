@@ -28,7 +28,6 @@ class CartScreen extends StatefulWidget {
 }
 
 class _CartScreenState extends State<CartScreen> {
-  bool _showCatalog = true;
   int _mult = 1;
   (String, double)? _last;
   String _q = '';
@@ -147,6 +146,139 @@ class _CartScreenState extends State<CartScreen> {
     } else {
       _flash('✓ ${product.name} ajouté');
     }
+  }
+
+  /// Catalogue of every article as big tiles (favourites first) in a sheet that
+  /// stays open, so a whole basket can be rung up with taps.
+  void _openCatalog() {
+    _q = '';
+    _busy = true;
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.82),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, set) {
+          final cart = ctx.watch<CartProvider>();
+          final s = ctx.watch<SettingsProvider>().settings;
+          final all = ctx.watch<ProductsProvider>().all;
+          final catalog = [
+            ...all.where((p) => p.favorite),
+            ...all.where((p) => !p.favorite),
+          ].where((p) => _q.isEmpty || p.name.toLowerCase().contains(_q) || p.barcode.contains(_q)).toList();
+          return Padding(
+            padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+                  child: Row(
+                    children: [
+                      const Expanded(
+                        child: Text('Articles',
+                            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, letterSpacing: -0.4)),
+                      ),
+                      Text('${cart.itemCount} · ${s.money(cart.total)}',
+                          style: TextStyle(color: ctx.pal.accent, fontWeight: FontWeight.w900, fontSize: 16)),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                  child: TextField(
+                    onChanged: (v) => set(() => _q = v.trim().toLowerCase()),
+                    decoration: const InputDecoration(
+                      isDense: true,
+                      prefixIcon: Icon(Icons.search_rounded),
+                      hintText: 'Chercher un article',
+                    ),
+                  ),
+                ),
+                SizedBox(
+                  height: 50,
+                  child: ListView(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                    children: [
+                      for (final n in const [1, 2, 3, 5, 10])
+                        Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: ChoiceChip(
+                            label: Text('×$n', style: const TextStyle(fontWeight: FontWeight.w900)),
+                            selected: _mult == n,
+                            onSelected: (_) {
+                              HapticFeedback.selectionClick();
+                              set(() => _mult = n);
+                            },
+                          ),
+                        ),
+                      if (_last != null)
+                        ActionChip(
+                          avatar: const Icon(Icons.undo_rounded, size: 18),
+                          label: const Text('Annuler'),
+                          onPressed: () {
+                            _undoLast();
+                            set(() {});
+                          },
+                        ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: catalog.isEmpty
+                      ? Center(child: Text('Aucun article', style: TextStyle(color: ctx.pal.muted)))
+                      : SingleChildScrollView(
+                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                          child: LayoutBuilder(
+                            builder: (ctx, c) {
+                              const gap = 8.0;
+                              final w = (c.maxWidth - gap * 2) / 3;
+                              return Wrap(
+                                spacing: gap,
+                                runSpacing: gap + 2,
+                                children: [
+                                  for (final f in catalog)
+                                    _QuickTile(
+                                      product: f,
+                                      width: w,
+                                      price: s.money(f.price),
+                                      inCart: cart.qtyOf(f.barcode),
+                                      onTap: () {
+                                        HapticFeedback.selectionClick();
+                                        _quickAdd(f);
+                                      },
+                                      onLongPress: f.byWeight || cart.qtyOf(f.barcode) <= 0
+                                          ? null
+                                          : () {
+                                              HapticFeedback.mediumImpact();
+                                              cart.decrement(f.barcode);
+                                            },
+                                    ),
+                                ],
+                              );
+                            },
+                          ),
+                        ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+                  child: PrimaryButton(
+                    icon: Icons.check_rounded,
+                    label: 'Terminé',
+                    trailing: cart.isEmpty ? null : s.money(cart.total),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    ).whenComplete(() {
+      _busy = false;
+      _q = '';
+    });
   }
 
   /// One tap on a quick-access product.
@@ -607,12 +739,6 @@ class _CartScreenState extends State<CartScreen> {
     final cart = context.watch<CartProvider>();
     final s = context.watch<SettingsProvider>().settings;
     final auth = context.watch<AuthProvider>();
-    final allProducts = context.watch<ProductsProvider>().all;
-    // Favourites first, then the rest; filtered by the search box.
-    final catalog = [
-      ...allProducts.where((p) => p.favorite),
-      ...allProducts.where((p) => !p.favorite),
-    ].where((p) => _q.isEmpty || p.name.toLowerCase().contains(_q) || p.barcode.contains(_q)).toList();
     final lines = cart.lines;
 
     return Column(
@@ -683,9 +809,9 @@ class _CartScreenState extends State<CartScreen> {
                 onPressed: () => setState(() => _cameraOn = !_cameraOn),
               ),
               SoftIconButton(
-                icon: _showCatalog ? Icons.grid_view_rounded : Icons.grid_off_rounded,
-                tooltip: _showCatalog ? 'Masquer les articles' : 'Afficher les articles',
-                onPressed: () => setState(() => _showCatalog = !_showCatalog),
+                icon: Icons.grid_view_rounded,
+                tooltip: 'Articles',
+                onPressed: _openCatalog,
               ),
               SoftIconButton(
                 icon: Icons.dialpad_rounded,
@@ -723,24 +849,13 @@ class _CartScreenState extends State<CartScreen> {
             ],
           ),
         ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: TotalBanner(
-            label: 'TOTAL À PAYER',
-            amount: s.money(cart.total),
-            sub: cart.discountAmount > 0
-                ? 'Remise −${s.money(cart.discountAmount)}'
-                : null,
-            badge: '${cart.itemCount} article${cart.itemCount > 1 ? 's' : ''}',
-          ),
-        ),
         if (_cameraOn)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(24),
               child: SizedBox(
-                height: 176,
+                height: 224,
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
@@ -819,123 +934,78 @@ class _CartScreenState extends State<CartScreen> {
               ),
             ),
           ),
-        if (_showCatalog && catalog.isNotEmpty || _q.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-            child: TextField(
-              onChanged: (v) => setState(() => _q = v.trim().toLowerCase()),
-              textInputAction: TextInputAction.search,
-              decoration: InputDecoration(
-                isDense: true,
-                prefixIcon: const Icon(Icons.search_rounded),
-                hintText: 'Chercher un article',
-                suffixIcon: _q.isEmpty ? null : const Icon(Icons.filter_alt_rounded, size: 18),
-              ),
-            ),
-          ),
-        if (_showCatalog && catalog.isNotEmpty)
-          SizedBox(
-            height: 50,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-              children: [
-                for (final n in const [1, 2, 3, 5, 10])
-                  Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: ChoiceChip(
-                      label: Text('×$n', style: const TextStyle(fontWeight: FontWeight.w900)),
-                      selected: _mult == n,
-                      onSelected: (_) {
-                        HapticFeedback.selectionClick();
-                        setState(() => _mult = n);
-                      },
-                    ),
-                  ),
-                if (_last != null)
-                  ActionChip(
-                    avatar: const Icon(Icons.undo_rounded, size: 18),
-                    label: const Text('Annuler'),
-                    onPressed: _undoLast,
-                  ),
-              ],
-            ),
-          ),
-        if (_showCatalog && catalog.isNotEmpty)
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 214),
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-              child: LayoutBuilder(
-                builder: (ctx, c) {
-                  const gap = 8.0;
-                  final w = (c.maxWidth - gap * 2) / 3;
-                  return Wrap(
-                    spacing: gap,
-                    runSpacing: gap,
-                    children: [
-                      for (final f in catalog)
-                        _QuickTile(
-                          product: f,
-                          width: w,
-                          price: s.money(f.price),
-                          inCart: cart.qtyOf(f.barcode),
-                          onTap: () {
-                            HapticFeedback.selectionClick();
-                            _quickAdd(f);
-                          },
-                          onLongPress: f.byWeight || cart.qtyOf(f.barcode) <= 0
-                              ? null
-                              : () {
-                                  HapticFeedback.mediumImpact();
-                                  cart.decrement(f.barcode);
-                                },
-                        ),
-                    ],
-                  );
-                },
-              ),
-            ),
-          ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 14, 12, 4),
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 4),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              const Expanded(
-                child: Text(
-                  'Articles scannés',
-                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Articles scannés',
+                        style: TextStyle(fontWeight: FontWeight.w900, fontSize: 20, letterSpacing: -0.3)),
+                    Text(
+                      cart.discountAmount > 0
+                          ? '${cart.itemCount} article${cart.itemCount > 1 ? 's' : ''} · remise −${s.money(cart.discountAmount)}'
+                          : '${cart.itemCount} article${cart.itemCount > 1 ? 's' : ''}',
+                      style: TextStyle(color: context.pal.muted, fontWeight: FontWeight.w600),
+                    ),
+                  ],
                 ),
               ),
-              if (cart.held.isNotEmpty)
-                SoftIconButton(
-                  icon: Icons.pause_circle_outline_rounded,
-                  tooltip: 'Tickets en attente',
-                  badge: '${cart.held.length}',
-                  onPressed: _showHeld,
-                ),
-              if (!cart.isEmpty) ...[
-                SoftIconButton(
-                  icon: Icons.pause_rounded,
-                  tooltip: 'Mettre en attente',
-                  onPressed: () async {
-                    await cart.holdCurrent();
-                    _flash('Ticket mis en attente');
-                  },
-                ),
-                if (auth.can(Perm.discount))
-                  SoftIconButton(
-                    icon: Icons.sell_rounded,
-                    tooltip: 'Remise',
-                    color: cart.discount != null
-                        ? const Color(0xFF16A34A)
-                        : null,
-                    onPressed: _discountDialog,
-                  ),
-              ],
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text('TOTAL À PAYER',
+                      style: TextStyle(
+                          color: context.pal.muted, fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 0.8)),
+                  Text(s.money(cart.total),
+                      style: TextStyle(
+                          color: context.pal.accent, fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: -0.8)),
+                ],
+              ),
             ],
           ),
         ),
+        if (cart.held.isNotEmpty || !cart.isEmpty)
+          SizedBox(
+            height: 46,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
+              children: [
+                if (cart.held.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: ActionChip(
+                      avatar: const Icon(Icons.pause_circle_outline_rounded, size: 18),
+                      label: Text('En attente (${cart.held.length})'),
+                      onPressed: _showHeld,
+                    ),
+                  ),
+                if (!cart.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: ActionChip(
+                      avatar: const Icon(Icons.pause_rounded, size: 18),
+                      label: const Text('Mettre en attente'),
+                      onPressed: () async {
+                        await cart.holdCurrent();
+                        _flash('Ticket mis en attente');
+                      },
+                    ),
+                  ),
+                if (!cart.isEmpty && auth.can(Perm.discount))
+                  ActionChip(
+                    avatar: Icon(Icons.sell_rounded,
+                        size: 18, color: cart.discount != null ? const Color(0xFF16A34A) : null),
+                    label: Text(cart.discount != null ? 'Remise active' : 'Remise'),
+                    onPressed: _discountDialog,
+                  ),
+              ],
+            ),
+          ),
         Expanded(
           child: cart.isEmpty
               ? Center(
@@ -986,7 +1056,28 @@ class _CartScreenState extends State<CartScreen> {
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 6, 16, 12),
-          child: SwipeToPay(
+          child: Row(
+            children: [
+              Material(
+                color: context.pal.card,
+                borderRadius: BorderRadius.circular(30),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(30),
+                  onTap: _openCatalog,
+                  child: Container(
+                    width: 60,
+                    height: 60,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(30),
+                      boxShadow: context.pal.shadow,
+                    ),
+                    child: Icon(Icons.grid_view_rounded, color: context.pal.accent, size: 26),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: SwipeToPay(
             label: cart.isEmpty ? 'Ajoutez des articles' : 'Glisser pour encaisser',
             trailing: cart.isEmpty ? null : s.money(cart.total),
             onConfirm: cart.isEmpty
@@ -995,6 +1086,9 @@ class _CartScreenState extends State<CartScreen> {
                     context,
                     MaterialPageRoute(builder: (_) => const PaymentScreen()),
                   ),
+          ),
+              ),
+            ],
           ),
         ),
       ],

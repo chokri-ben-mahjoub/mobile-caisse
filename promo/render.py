@@ -231,6 +231,19 @@ def icon(kind, size, color):
     elif kind == "cross":
         d.line([(24 * u, 24 * u), (76 * u, 76 * u)], fill=c, width=int(lw * 1.5))
         d.line([(76 * u, 24 * u), (24 * u, 76 * u)], fill=c, width=int(lw * 1.5))
+    elif kind == "grid":
+        for gx in (14, 54):
+            for gy in (14, 54):
+                d.rounded_rectangle([gx * u, gy * u, (gx + 32) * u, (gy + 32) * u], 9 * u, fill=c)
+    elif kind == "keypad":
+        for gx in (22, 50, 78):
+            for gy in (18, 42, 66, 90):
+                d.ellipse([(gx - 7) * u, (gy - 7) * u, (gx + 7) * u, (gy + 7) * u], fill=c)
+    elif kind == "chev":
+        d.line([(34 * u, 20 * u), (66 * u, 50 * u), (34 * u, 80 * u)], fill=c, width=int(lw * 1.5), joint="curve")
+    elif kind == "search":
+        d.ellipse([16 * u, 16 * u, 62 * u, 62 * u], outline=c, width=lw)
+        d.line([(56 * u, 56 * u), (84 * u, 84 * u)], fill=c, width=int(lw * 1.4))
     elif kind == "slash":
         d.line([(10 * u, 90 * u), (90 * u, 10 * u)], fill=c, width=int(lw * 1.5))
     return _down(im)
@@ -297,59 +310,166 @@ def barcode_img():
     return im
 
 
+CATALOG = [
+    ("Eau min\u00e9rale", 0.8, (59, 130, 246)), ("Baguette", 0.25, (249, 115, 22)), ("Jus d'orange", 2.2, (234, 179, 8)),
+    ("Chocolat noir", 1.5, (139, 92, 246)), ("Lait 1L", 1.35, (6, 182, 212)), ("Caf\u00e9", 3.2, (236, 72, 153)),
+    ("Yaourt", 0.6, (16, 185, 129)), ("Biscuits", 1.9, (239, 68, 68)), ("Tomates /kg", 1.8, (34, 197, 94)),
+]
+# which catalogue tile each scanned/tapped item comes from, and when it lands (seconds since screen start)
+ADD_AT = [0.35, 0.75, 1.3, 1.45]
+SHEET_UP, SHEET_DOWN, SWIPE_AT = 0.98, 1.68, 1.95
+
+
+def _avatar(name, col, size):
+    a = rrect(size, size, size // 3, col + (255,))
+    a = a.copy()
+    ic = txt(name[0].upper(), BLK, int(size * 0.55), WHITE)
+    a.alpha_composite(ic, ((size - ic.width) // 2, (size - ic.height) // 2))
+    return a
+
+
+def _catalog_sheet(t, shown_total, shown_n):
+    """The 'Articles' bottom sheet with the coloured tiles."""
+    h = 900
+    sh = Image.new("RGBA", (SW, h), (0, 0, 0, 0))
+    sh.alpha_composite(rrect(SW, h + 80, 54, (255, 255, 255, 255)), (0, 0))
+    sh.alpha_composite(rrect(70, 8, 4, (200, 208, 220, 255)), (SW // 2 - 35, 16))
+    text(sh, "Articles", 36 + txt("Articles", BLK, 38, INK).width / 2, 76, 38, INK, BLK)
+    rt = f"{shown_n} \u00b7 {money(shown_total)}"
+    text(sh, rt, SW - 36 - txt(rt, BLK, 26, BLUE).width / 2, 76, 26, BLUE, BLK)
+    sh.alpha_composite(rrect(SW - 64, 64, 32, (241, 245, 249, 255)), (32, 112))
+    sh.alpha_composite(icon("search", 30, MUTED), (58, 129))
+    text(sh, "Chercher un article", 100 + txt("Chercher un article", REG, 24, MUTED).width / 2, 144, 24, MUTED, REG)
+    for i, lab in enumerate(["\u00d71", "\u00d72", "\u00d73", "\u00d75", "\u00d710"]):
+        x = 32 + i * 96
+        on = i == 0
+        sh.alpha_composite(rrect(84, 48, 24, BLUE + (255,) if on else (241, 245, 249, 255)), (x, 198))
+        text(sh, lab, x + 42, 222, 24, WHITE if on else INK, BLK)
+    tw, th, gap = 158, 118, 14
+    taps = {2: ADD_AT[2], 3: ADD_AT[3]}  # tile index -> tap time
+    for i, (n, pr, col) in enumerate(CATALOG):
+        cx = 32 + (i % 3) * (tw + gap)
+        cy = 276 + (i // 3) * (th + gap + 6)
+        hit = taps.get(i)
+        pp = prog(t, hit, 0.25) if hit is not None else 0
+        active = hit is not None and t >= hit
+        press = 0.94 if (hit is not None and 0 <= t - hit < 0.12) else 1.0
+        tile = Image.new("RGBA", (tw + 24, th + 24), (0, 0, 0, 0))
+        fill = (col[0], col[1], col[2], 40) if active else (255, 255, 255, 255)
+        base = rrect(tw, th, 26, fill, outline=(col + (255,)) if active else (226, 232, 240, 255), ow=3 if active else 2)
+        t2 = Image.new("RGBA", (tw + 24, th + 24), (0, 0, 0, 0))
+        t2.alpha_composite(base, (12, 12))
+        av = _avatar(n, col, 34)
+        t2.alpha_composite(av, (26, 26))
+        nm = txt(n.replace(" /kg", ""), BOLD, 17, INK)
+        t2.alpha_composite(nm, (64, 31))
+        pt = txt(money(pr).replace(" DT", ""), BLK, 30, col)
+        t2.alpha_composite(pt, (26, 78))
+        if active:
+            bd = rrect(40, 34, 17, col + (255,))
+            bd = bd.copy()
+            bt = txt("1", BLK, 22, WHITE)
+            bd.alpha_composite(bt, ((40 - bt.width) // 2, (34 - bt.height) // 2))
+            t2.alpha_composite(bd, (tw - 24, 0))
+        put(sh, t2, cx + tw / 2, cy + th / 2, press * (1 + 0.06 * math.sin(clamp(pp) * math.pi)))
+    sh.alpha_composite(grad_rrect(SW - 64, 72, 36, (37, 99, 235), (91, 52, 214)), (32, h - 110))
+    text(sh, "Termin\u00e9", SW / 2 - 40, h - 74, 30, WHITE, BLK)
+    text(sh, money(shown_total), SW / 2 + 130, h - 74, 26, (210, 222, 255), BOLD)
+    return sh
+
+
 def screen_cart(t):
-    """t = seconds since the scanning started. Shows the scan + list screen."""
+    """t = seconds since the screen opened: scan two items, open the article tiles, tap two, swipe to pay."""
     s = Image.new("RGBA", (SW, SH), (241, 245, 249, 255))
-    put(s, grad_rrect(SW, 190, 0, (37, 99, 235), (91, 52, 214)), 0, 0, anchor="tl")
-    text(s, "Caisse", 40 + txt("Caisse", BLK, 44, WHITE).width / 2, 100, 44, WHITE)
-    put(s, rrect(150, 46, 23, (255, 255, 255, 60)), SW - 110, 100)
-    text(s, "En ligne  \u2022  Hors-ligne OK", 0, 0, 1, WHITE, alpha=0)  # keep cache warm-free
-    text(s, "Hors-ligne OK", SW - 110, 100, 21, WHITE, BOLD)
-    # viewfinder
-    put(s, rrect(504, 270, 34, (15, 23, 42, 255), shadow=14), SW / 2, 285)
-    bc = barcode_img()
+    # header
+    text(s, "\u00c9picerie Chez Sami", 36 + txt("\u00c9picerie Chez Sami", BLK, 36, INK).width / 2, 66, 36, INK, BLK)
+    text(s, "Caisse", 36 + txt("Caisse", BOLD, 22, BLUE).width / 2, 108, 22, BLUE, BOLD)
+    for i, kind in enumerate(["keypad", "grid"]):
+        cx = SW - 36 - 30 - i * 74
+        put(s, rrect(60, 60, 30, (255, 255, 255, 255), shadow=6), cx, 66)
+        put(s, icon(kind, 30, BLUE), cx, 66)
+    # camera
+    put(s, rrect(504, 300, 34, (15, 23, 42, 255), shadow=10), SW / 2, 290)
+    cam = Image.new("RGBA", (504, 300), (0, 0, 0, 0))
     shake = math.sin(t * 9) * 3
-    put(s, bc, SW / 2 + shake, 285, 1.2)
+    scan_i = None
+    for i in range(2):
+        if 0 <= t - ADD_AT[i] < 0.5:
+            scan_i = i
+    show_bc = scan_i is not None or t < ADD_AT[0]
+    if show_bc:
+        put(cam, barcode_img(), 252 + shake, 150, 1.1)
+    cam_mask = rrect(504, 300, 34, (255, 255, 255, 255)).getchannel("A")
+    bl = Image.new("RGBA", (504, 300), (22, 30, 52, 255))
+    bl.alpha_composite(cam)
     corner = (255, 255, 255, 255)
-    for (cx, cy, sx, sy) in [(70, 170, 1, 1), (SW - 70, 170, -1, 1), (70, 400, 1, -1), (SW - 70, 400, -1, -1)]:
-        d = ImageDraw.Draw(s)
-        d.line([(cx, cy + sy * 46), (cx, cy), (cx + sx * 46, cy)], fill=corner, width=7, joint="curve")
-    # laser
-    ly = 205 + (math.sin(t * 7) * 0.5 + 0.5) * 160
-    s.alpha_composite(rrect(420, 8, 4, (239, 68, 68, 255)), (int(SW / 2 - 210), int(ly)))
-    # beep flash on every new item
-    flash = 0
-    for i in range(len(ITEMS)):
-        dt = t - (0.15 + i * 0.4)
+    d = ImageDraw.Draw(bl)
+    for (cx, cy, sx, sy) in [(40, 30, 1, 1), (464, 30, -1, 1), (40, 270, 1, -1), (464, 270, -1, -1)]:
+        d.line([(cx, cy + sy * 44), (cx, cy), (cx + sx * 44, cy)], fill=corner, width=7, joint="curve")
+    ly = 62 + (math.sin(t * 7) * 0.5 + 0.5) * 176
+    bl.alpha_composite(rrect(400, 7, 3, (239, 68, 68, 255)), (52, int(ly)))
+    for i in range(2):
+        dt = t - ADD_AT[i]
         if 0 <= dt < 0.18:
-            flash = max(flash, 1 - dt / 0.18)
-    if flash > 0:
-        ov = Image.new("RGBA", (504, 270), (255, 255, 255, int(140 * flash)))
-        put(s, ov, SW / 2, 285)
-    # list
+            bl.alpha_composite(Image.new("RGBA", (504, 300), (255, 255, 255, int(150 * (1 - dt / 0.18)))))
+        if 0 <= dt < 1.0:
+            nm = CATALOG[i][0] + " ajouté"
+            tw_ = txt(nm, BLK, 24, WHITE).width + 44
+            pill = rrect(tw_, 46, 23, (22, 163, 74, 255))
+            put(bl, pill, 252, 262 - 6 * (1 - e_out(prog(dt, 0, 0.2))), 1, clamp(1 - (dt - 0.7) / 0.3))
+            put(bl, txt(nm, BLK, 24, WHITE), 252, 262 - 6 * (1 - e_out(prog(dt, 0, 0.2))), 1, clamp(1 - (dt - 0.7) / 0.3))
+    bl.putalpha(Image.fromarray((np.array(bl.getchannel("A")) * (np.array(cam_mask) / 255)).astype(np.uint8)))
+    put(s, bl, SW / 2, 290)
+
+    # list header + total
     total = 0.0
-    shown = 0
-    for i, (n, p) in enumerate(ITEMS):
-        t0 = 0.15 + i * 0.4
-        pr = prog(t, t0, 0.35)
+    n_items = 0
+    for i in range(4):
+        if t >= ADD_AT[i]:
+            total += CATALOG[i][1]
+            n_items += 1
+    text(s, "Articles scann\u00e9s", 36 + txt("Articles scann\u00e9s", BLK, 32, INK).width / 2, 488, 32, INK, BLK)
+    sub = f"{n_items} article{'s' if n_items > 1 else ''}"
+    text(s, sub, 36 + txt(sub, BOLD, 20, MUTED).width / 2, 524, 20, MUTED, BOLD)
+    text(s, "TOTAL \u00c0 PAYER", SW - 36 - txt("TOTAL \u00c0 PAYER", BOLD, 15, MUTED).width / 2, 480, 15, MUTED, BOLD)
+    tv = money(total)
+    text(s, tv, SW - 36 - txt(tv, BLK, 40, BLUE).width / 2, 520, 40, BLUE, BLK)
+    # cards
+    for i in range(4):
+        pr = prog(t, ADD_AT[i], 0.3)
         if pr <= 0:
             continue
-        total += p
-        shown += 1
-        y = 470 + i * 104
-        card = rrect(504, 92, 24, (255, 255, 255, 255), shadow=10)
-        put(s, card, SW / 2 + (1 - e_out(pr)) * 120, y + 46, 1, clamp(pr * 2.5))
-        ox = (1 - e_out(pr)) * 120
-        text(s, n, 56 + ox + txt(n, BOLD, 30, INK).width / 2 - 4, y + 34, 30, INK, BOLD, alpha=clamp(pr * 2.5))
-        text(s, "1 \u00d7 " + money(p), 56 + ox + txt("1 \u00d7 " + money(p), REG, 22, MUTED).width / 2 - 4, y + 66, 22, MUTED, REG, alpha=clamp(pr * 2.5))
-        text(s, money(p), SW - 56 - txt(money(p), BLK, 28, BLUE).width / 2 + ox, y + 46, 28, BLUE, BLK, alpha=clamp(pr * 2.5))
-    # total banner
-    put(s, grad_rrect(504, 170, 36, (37, 99, 235), (91, 52, 214)), SW / 2, SH - 130)
-    text(s, "TOTAL", 40 + 30 + 8, SH - 190, 22, (200, 215, 255), BOLD)
-    tv = txt(money(total), BLK, 56, WHITE)
-    put(s, tv, 54 + tv.width / 2, SH - 140)
-    put(s, rrect(170, 62, 31, (255, 255, 255, 255)), SW - 140, SH - 130)
-    text(s, "Encaisser", SW - 140, SH - 132, 25, BLUE, BLK)
+        n, p, col = CATALOG[i]
+        y = 566 + i * 98
+        ox = (1 - e_out(pr)) * 110
+        put(s, rrect(504, 86, 24, (255, 255, 255, 255), shadow=8), SW / 2 + ox, y + 43, 1, clamp(pr * 2.5))
+        put(s, _avatar(n, col, 52), 36 + 26 + 14 + ox, y + 43, 1, clamp(pr * 2.5))
+        text(s, n, 112 + ox + txt(n, BOLD, 27, INK).width / 2, y + 32, 27, INK, BOLD, alpha=clamp(pr * 2.5))
+        sl = "1 \u00d7 " + money(p)
+        text(s, sl, 112 + ox + txt(sl, REG, 20, MUTED).width / 2, y + 62, 20, MUTED, REG, alpha=clamp(pr * 2.5))
+        mv = money(p)
+        text(s, mv, SW - 52 - txt(mv, BLK, 26, BLUE).width / 2 + ox, y + 43, 26, BLUE, BLK, alpha=clamp(pr * 2.5))
+
+    # bottom bar: article tiles button + swipe to pay
+    put(s, rrect(72, 72, 36, (255, 255, 255, 255), shadow=8), 36 + 36, SH - 66)
+    put(s, icon("grid", 34, BLUE), 36 + 36, SH - 66)
+    sx0, sw_ = 124, SW - 124 - 32
+    put(s, grad_rrect(sw_, 72, 36, (37, 99, 235), (91, 52, 214)), sx0 + sw_ / 2, SH - 66)
+    dp = e_io(prog(t, SWIPE_AT, 0.32)) if t >= SWIPE_AT else 0.0
+    lab = "Glisser pour encaisser  ›››"
+    text(s, lab, sx0 + sw_ / 2 + 30, SH - 66, 21, WHITE, BLK, alpha=clamp(1 - dp * 1.6))
+    mx = sw_ - 72 + 0
+    put(s, rrect(62, 62, 31, (255, 255, 255, 255)), sx0 + 5 + 31 + dp * (mx - 5), SH - 66)
+    put(s, icon("chev", 34, BLUE), sx0 + 5 + 31 + dp * (mx - 5), SH - 66)
+
+    # article sheet
+    up = e_out(prog(t, SHEET_UP, 0.28))
+    down = e_io(prog(t, SHEET_DOWN, 0.22))
+    sp = up * (1 - down)
+    if sp > 0.002:
+        s.alpha_composite(Image.new("RGBA", (SW, SH), (10, 16, 40, int(120 * sp))))
+        sheet = _catalog_sheet(t, total, n_items)
+        put(s, sheet, SW / 2, SH - 900 * sp + 450, 1)
     return s
 
 
