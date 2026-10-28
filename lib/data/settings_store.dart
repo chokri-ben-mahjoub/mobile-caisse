@@ -18,6 +18,9 @@ class AppSettings {
   /// Interface language: `fr` or `ar` (Tunisian Arabic, right to left).
   final String language;
 
+  /// Beep when an article is scanned.
+  final bool scanSound;
+
   const AppSettings({
     this.storeName = 'Ma boutique',
     this.currency = 'DT',
@@ -28,6 +31,7 @@ class AppSettings {
     this.dailyGoal = 500,
     this.themeMode = 'system',
     this.language = 'fr',
+    this.scanSound = true,
   });
 
   AppSettings copyWith({
@@ -40,6 +44,7 @@ class AppSettings {
     double? dailyGoal,
     String? themeMode,
     String? language,
+    bool? scanSound,
   }) =>
       AppSettings(
         storeName: storeName ?? this.storeName,
@@ -51,6 +56,7 @@ class AppSettings {
         dailyGoal: dailyGoal ?? this.dailyGoal,
         themeMode: themeMode ?? this.themeMode,
         language: language ?? this.language,
+        scanSound: scanSound ?? this.scanSound,
       );
 
   /// Evening dark mode runs from this hour (inclusive) to [autoDarkEnd] (exclusive) the next morning.
@@ -86,6 +92,7 @@ class SettingsStore {
       dailyGoal: sp.getDouble('dailyGoal') ?? d.dailyGoal,
       themeMode: sp.getString('themeMode') ?? d.themeMode,
       language: sp.getString('language') ?? d.language,
+      scanSound: sp.getBool('scanSound') ?? d.scanSound,
     );
   }
 
@@ -118,5 +125,6 @@ class SettingsStore {
     await sp.setDouble('dailyGoal', s.dailyGoal);
     await sp.setString('themeMode', s.themeMode);
     await sp.setString('language', s.language);
+    await sp.setBool('scanSound', s.scanSound);
   }
 }

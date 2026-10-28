@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../data/backup_service.dart';
 import '../../data/biometric_service.dart';
+import '../../data/scan_sound.dart';
 import '../../data/models.dart';
 import '../../data/printer_service.dart';
 import '../../data/settings_store.dart';
@@ -304,6 +305,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ],
             selected: {s.language},
             onSelectionChanged: (v) => context.read<SettingsProvider>().update(s.copyWith(language: v.first)),
+          ),
+          header('SCAN'),
+          Container(
+            decoration: BoxDecoration(color: context.pal.card, borderRadius: BorderRadius.circular(16), border: Border.all(color: context.pal.border, width: 1.5)),
+            child: SwitchListTile(
+              secondary: Icon(Icons.volume_up_rounded, color: context.pal.accent),
+              title: const Text('Son du scan', style: TextStyle(fontWeight: FontWeight.w800)),
+              subtitle: const Text('Un bip comme une douchette à chaque article scanné'),
+              value: s.scanSound,
+              onChanged: (v) {
+                if (v) ScanSound.beep();
+                context.read<SettingsProvider>().update(s.copyWith(scanSound: v));
+              },
+            ),
           ),
           header('APPARENCE'),
           SegmentedButton<String>(

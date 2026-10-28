@@ -16,6 +16,23 @@ class CartProvider extends ChangeNotifier {
   Discount? discount;
   List<HeldCart> held = [];
 
+  /// Last time each line was added to (newest scan = most recent), to show it first.
+  final Map<String, int> _stamp = {};
+  int _clock = 0;
+
+  /// Line scanned or added last, null when the cart is empty.
+  SaleLine? get lastLine {
+    if (_stamp.isEmpty) return null;
+    final key = _stamp.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
+    return _lines[key];
+  }
+
+  /// Lines with the most recently scanned article first.
+  List<SaleLine> get recentLines =>
+      lines..sort((a, b) => (_stamp[b.barcode] ?? 0).compareTo(_stamp[a.barcode] ?? 0));
+
+  void _touch(String barcode) => _stamp[barcode] = ++_clock;
+
   List<SaleLine> get lines => _lines.values.toList();
 
   /// Articles in the cart (a weighed item counts for one).
@@ -47,6 +64,7 @@ class CartProvider extends ChangeNotifier {
       cost: p.cost,
       unit: p.unit,
     );
+    _touch(p.barcode);
     notifyListeners();
   }
 
@@ -54,6 +72,7 @@ class CartProvider extends ChangeNotifier {
   void addFree({required String name, required double price, double qty = 1}) {
     final key = 'LIBRE-${DateTime.now().microsecondsSinceEpoch}';
     _lines[key] = SaleLine(barcode: key, name: name, price: price, qty: qty);
+    _touch(key);
     notifyListeners();
   }
 
@@ -61,6 +80,7 @@ class CartProvider extends ChangeNotifier {
     final l = _lines[barcode];
     if (l == null) return;
     _lines[barcode] = l.withQty(l.qty + 1);
+    _touch(barcode);
     notifyListeners();
   }
 
@@ -89,6 +109,7 @@ class CartProvider extends ChangeNotifier {
 
   void remove(String barcode) {
     _lines.remove(barcode);
+    _stamp.remove(barcode);
     if (_lines.isEmpty) discount = null;
     notifyListeners();
   }
@@ -100,6 +121,7 @@ class CartProvider extends ChangeNotifier {
 
   void clear() {
     _lines.clear();
+    _stamp.clear();
     discount = null;
     notifyListeners();
   }
@@ -120,6 +142,7 @@ class CartProvider extends ChangeNotifier {
 
   /// Replaces the current cart by the held one, which is then removed from the list.
   Future<void> resume(HeldCart h) async {
+    _stamp.clear();
     _lines
       ..clear()
       ..addEntries(h.lines.map((l) => MapEntry(l.barcode, l)));
@@ -130,6 +153,7 @@ class CartProvider extends ChangeNotifier {
 
   /// Replaces the current cart by [lines] (e.g. a quote turned into a sale).
   void loadLines(List<SaleLine> newLines, Discount? d) {
+    _stamp.clear();
     _lines
       ..clear()
       ..addEntries(newLines.map((l) => MapEntry(l.barcode, l)));

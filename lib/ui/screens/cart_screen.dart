@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 
 import '../../data/barcode_utils.dart';
 import '../../data/models.dart';
+import '../../data/scan_sound.dart';
 import '../../logic/auth_provider.dart';
 import '../../logic/cart_provider.dart';
 import '../../logic/products_provider.dart';
@@ -100,6 +101,7 @@ class _CartScreenState extends State<CartScreen> {
         break;
     }
     if (!mounted) return;
+    if (context.read<SettingsProvider>().settings.scanSound) ScanSound.error();
     _busy = true;
     final create = await showDialog<bool>(
       context: context,
@@ -143,12 +145,16 @@ class _CartScreenState extends State<CartScreen> {
   /// Confirmation after a unit product was added; warns when stock runs short.
   void _announceAdded(Product product) {
     final qty = context.read<CartProvider>().qtyOf(product.barcode);
+    final sound = context.read<SettingsProvider>().settings.scanSound;
     if (product.tracked && qty > product.stock!) {
+      if (sound) ScanSound.error();
       _flash(
         '⚠ ${product.name} : stock insuffisant (${fmtQty(product.stock!, unit: product.unit)})',
         warn: true,
       );
     } else {
+      if (sound) ScanSound.beep();
+      HapticFeedback.lightImpact();
       _flash('✓ ${product.name} ajouté');
     }
   }
@@ -293,7 +299,6 @@ class _CartScreenState extends State<CartScreen> {
     } else {
       final n = _mult.toDouble();
       context.read<CartProvider>().add(p, qty: n);
-      SystemSound.play(SystemSoundType.click);
       setState(() {
         _last = (p.barcode, n);
         _mult = 1;
@@ -746,7 +751,7 @@ class _CartScreenState extends State<CartScreen> {
     final cart = context.watch<CartProvider>();
     final s = context.watch<SettingsProvider>().settings;
     final auth = context.watch<AuthProvider>();
-    final lines = cart.lines;
+    final lines = cart.recentLines;
 
     return Column(
       children: [
@@ -1024,6 +1029,7 @@ class _CartScreenState extends State<CartScreen> {
               ],
             ),
           ),
+        if (cart.lastLine != null) LastScanCard(line: cart.lastLine!, settings: s),
         Expanded(
           child: cart.isEmpty
               ? Center(
@@ -1110,6 +1116,95 @@ class _CartScreenState extends State<CartScreen> {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Big, impossible-to-miss card for the article just scanned: name, price, quantity and line total.
+/// It pops and flashes green each time an article is added.
+class LastScanCard extends StatelessWidget {
+  const LastScanCard({super.key, required this.line, required this.settings});
+  final SaleLine line;
+  final AppSettings settings;
+
+  @override
+  Widget build(BuildContext context) {
+    // A new key on every scan / quantity change replays the entrance animation.
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+      child: TweenAnimationBuilder<double>(
+        key: ValueKey('${line.barcode}|${line.qty}'),
+        tween: Tween(begin: 0, end: 1),
+        duration: const Duration(milliseconds: 450),
+        curve: Curves.easeOutBack,
+        builder: (context, t, _) {
+          final flash = (1 - t).clamp(0.0, 1.0);
+          return Transform.scale(
+            scale: 0.94 + 0.06 * t,
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Color.lerp(const Color(0xFF1E3A8A), const Color(0xFF16A34A), flash)!,
+                    Color.lerp(const Color(0xFF2563EB), const Color(0xFF34D673), flash)!,
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(22),
+                boxShadow: const [BoxShadow(color: Color(0x4D2563EB), blurRadius: 18, offset: Offset(0, 8))],
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 54,
+                    height: 54,
+                    decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.18), borderRadius: BorderRadius.circular(16)),
+                    alignment: Alignment.center,
+                    child: Text(
+                      '×${fmtQty(line.qty)}',
+                      style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          line.name,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(color: Colors.white, fontSize: 21, fontWeight: FontWeight.w900, height: 1.1),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${settings.money(line.price)}${line.byWeight ? '/kg' : ''}',
+                          style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 15, fontWeight: FontWeight.w700),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Icon(Icons.check_circle_rounded, color: Colors.white.withValues(alpha: 0.9), size: 20),
+                      const SizedBox(height: 2),
+                      Text(
+                        settings.money(line.total),
+                        style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900, letterSpacing: -0.5),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 }
