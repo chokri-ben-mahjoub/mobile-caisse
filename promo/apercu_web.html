@@ -1,0 +1,366 @@
+<title>Caisse POS Aperçu</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+  /* Layout: a switcher of app screens on the left, one phone on the right; stacks on narrow screens */
+  :root {
+    --bg: #eef2fb; --fg: #0f172a; --muted: #5b6b86; --panel: #ffffff; --line: #d5def0; --accent: #2563eb;
+    /* app palette (inside the phone) */
+    --a-bg: #f1f5fb; --a-card: #ffffff; --a-ink: #0f172a; --a-muted: #64748b; --a-soft: #dbe7fe; --a-soft2: #eef3fc;
+    --a-accent: #1e40af; --a-border: #d5def0; --a-shadow: 0 6px 18px rgba(30,58,138,.09);
+    --hero: linear-gradient(135deg, #1e3a8a, #2563eb 55%, #3b82f6);
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+    --bg: #0a1020; --fg: #e6ebf5; --muted: #94a3bd; --panel: #131c30; --line: #243252; --accent: #60a5fa;
+    color-scheme: dark; } }
+  :root[data-theme="dark"] { --bg: #0a1020; --fg: #e6ebf5; --muted: #94a3bd; --panel: #131c30; --line: #243252; --accent: #60a5fa; color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { background: var(--bg); color: var(--fg); font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+    padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 24px; }
+  .wrap { max-width: 1040px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr) 400px; gap: 40px; align-items: start; }
+  h1 { font-size: clamp(26px, 4vw, 38px); line-height: 1.1; margin: 0 0 8px; letter-spacing: -.8px; text-wrap: balance; }
+  .lead { color: var(--muted); margin: 0 0 22px; max-width: 52ch; line-height: 1.5; }
+  .steps { display: grid; gap: 10px; }
+  .step { text-align: left; background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px; cursor: pointer;
+    color: var(--fg); font: inherit; display: grid; grid-template-columns: 38px 1fr; gap: 4px 14px; align-items: center; }
+  .step:focus-visible, .btn:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .step[aria-current="true"] { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
+  .step .ic { grid-row: span 2; width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; font-size: 18px; color: #fff; }
+  .step b { font-size: 15px; } .step span { color: var(--muted); font-size: 13px; line-height: 1.35; }
+  .phonebox { display: flex; justify-content: center; }
+  .phone { width: 380px; height: 790px; border-radius: 52px; background: #0b1024; padding: 12px; box-shadow: 0 30px 60px rgba(10,16,48,.35), inset 0 0 0 2px #2a3358; position: relative; }
+  .screen { width: 100%; height: 100%; border-radius: 42px; overflow: hidden; background: var(--a-bg); color: var(--a-ink); position: relative; display: flex; flex-direction: column; font-size: 14px; }
+  .notch { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); width: 92px; height: 24px; background: #0b1024; border-radius: 14px; z-index: 30; }
+  .pad { padding-top: 46px; }
+  .row { display: flex; align-items: center; gap: 10px; }
+  .grow { flex: 1; min-width: 0; }
+  .muted { color: var(--a-muted); }
+  .iconbtn { width: 40px; height: 40px; border-radius: 14px; border: 0; background: var(--a-card); box-shadow: var(--a-shadow); color: var(--a-accent); font-size: 17px; cursor: pointer; }
+  .tabbar { display: flex; justify-content: space-around; padding: 8px 6px 12px; background: var(--a-card); border-top: 1px solid var(--a-border); font-size: 10px; color: var(--a-muted); font-weight: 700; }
+  .tabbar div { display: grid; justify-items: center; gap: 2px; } .tabbar .on { color: var(--a-accent); } .tabbar i { font-style: normal; font-size: 18px; }
+  .body { flex: 1; overflow-y: auto; padding: 0 16px 14px; scrollbar-width: none; } .body::-webkit-scrollbar { display: none; }
+  .cam { height: 150px; border-radius: 24px; background: #16203a; position: relative; overflow: hidden; margin: 6px 0 0; }
+  .cam .bc { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 150px; height: 56px; background: repeating-linear-gradient(90deg, #fff 0 3px, #16203a 3px 5px, #fff 5px 6px, #16203a 6px 10px); border-radius: 4px; opacity: .92; }
+  .cam .cor { position: absolute; width: 26px; height: 26px; border: 4px solid #fff; } .cam .tl { top: 14px; left: 14px; border-right: 0; border-bottom: 0; border-radius: 8px 0 0 0; }
+  .cam .tr { top: 14px; right: 14px; border-left: 0; border-bottom: 0; border-radius: 0 8px 0 0; } .cam .bl { bottom: 14px; left: 14px; border-right: 0; border-top: 0; border-radius: 0 0 0 8px; }
+  .cam .br { bottom: 14px; right: 14px; border-left: 0; border-top: 0; border-radius: 0 0 8px 0; }
+  .cam .laser { position: absolute; left: 22px; right: 22px; height: 3px; background: #ef4444; border-radius: 2px; animation: sweep 1.6s ease-in-out infinite alternate; }
+  @keyframes sweep { from { top: 26px } to { top: 118px } }
+  @media (prefers-reduced-motion: reduce) { .cam .laser { animation: none; top: 70px; } }
+  .toast { position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); background: #16a34a; color: #fff; font-weight: 800; font-size: 12px; padding: 7px 14px; border-radius: 16px; white-space: nowrap; z-index: 3; }
+  .hdr { display: flex; align-items: flex-end; justify-content: space-between; margin: 14px 4px 4px; }
+  .hdr h3 { margin: 0; font-size: 18px; letter-spacing: -.3px; } .total { text-align: right; } .total small { display: block; font-size: 9px; letter-spacing: .8px; font-weight: 800; color: var(--a-muted); }
+  .total b { font-size: 24px; color: var(--a-accent); letter-spacing: -.8px; }
+  .chips { display: flex; gap: 8px; overflow-x: auto; padding: 8px 0 2px; scrollbar-width: none; }
+  .chip { border: 1px solid var(--a-border); background: var(--a-card); color: var(--a-ink); border-radius: 12px; padding: 7px 11px; font: inherit; font-weight: 700; font-size: 12px; white-space: nowrap; cursor: pointer; }
+  .chip.sel { background: var(--a-accent); color: #fff; border-color: var(--a-accent); }
+  .line { display: flex; align-items: center; gap: 10px; background: var(--a-card); border-radius: 18px; padding: 10px; margin-top: 8px; box-shadow: var(--a-shadow); animation: pop .25s ease-out; }
+  @keyframes pop { from { transform: translateY(8px); opacity: 0 } }
+  .av { width: 36px; height: 36px; border-radius: 12px; display: grid; place-items: center; color: #fff; font-weight: 900; flex: none; }
+  .line b { display: block; font-size: 14px; } .line small { color: var(--a-muted); font-weight: 600; font-size: 11px; } .line .amt { color: var(--a-accent); font-weight: 900; }
+  .empty { text-align: center; color: var(--a-muted); padding: 26px 0; font-weight: 700; }
+  .bottom { padding: 8px 16px 12px; display: flex; gap: 10px; align-items: center; }
+  .gridbtn { width: 56px; height: 56px; border-radius: 28px; border: 0; background: var(--a-card); box-shadow: var(--a-shadow); color: var(--a-accent); font-size: 22px; cursor: pointer; flex: none; }
+  .swipe { position: relative; flex: 1; height: 56px; border-radius: 28px; background: var(--hero); overflow: hidden; touch-action: none; user-select: none; }
+  .swipe.off { background: var(--a-soft2); }
+  .swipe span { position: absolute; inset: 0; display: grid; place-items: center; padding-left: 44px; color: #fff; font-weight: 800; font-size: 13px; }
+  .swipe.off span { color: var(--a-muted); }
+  .thumb { position: absolute; left: 4px; top: 4px; width: 48px; height: 48px; border-radius: 24px; background: #fff; color: #2563eb; display: grid; place-items: center; font-size: 24px; font-weight: 900; cursor: grab; }
+  .scrim { position: absolute; inset: 0; background: rgba(10,16,40,.45); z-index: 10; animation: fade .2s; } @keyframes fade { from { opacity: 0 } }
+  .sheet { position: absolute; left: 0; right: 0; bottom: 0; background: var(--a-card); border-radius: 28px 28px 0 0; padding: 8px 16px 16px; z-index: 11; max-height: 86%; display: flex; flex-direction: column; animation: up .28s cubic-bezier(.2,.9,.3,1); }
+  @keyframes up { from { transform: translateY(40%); opacity: 0 } }
+  .sheet .grab { width: 38px; height: 4px; background: #cbd5e1; border-radius: 3px; margin: 0 auto 10px; }
+  .sheet h2 { margin: 0; font-size: 20px; letter-spacing: -.3px; }
+  .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; overflow-y: auto; padding: 10px 2px 6px; scrollbar-width: none; }
+  .tile { position: relative; border: 2px solid transparent; background: var(--a-card); border-radius: 16px; padding: 9px 9px 8px; text-align: left; font: inherit; color: var(--a-ink); cursor: pointer; box-shadow: var(--a-shadow); transition: transform .08s; }
+  .tile:active { transform: scale(.94); } .tile .n { display: flex; gap: 6px; align-items: center; font-weight: 800; font-size: 11px; white-space: nowrap; overflow: hidden; }
+  .tile .n i { width: 20px; height: 20px; border-radius: 7px; display: grid; place-items: center; color: #fff; font-style: normal; font-size: 11px; flex: none; }
+  .tile .p { margin-top: 10px; font-weight: 900; font-size: 15px; } .tile .b { position: absolute; top: -7px; right: -4px; color: #fff; font-weight: 900; font-size: 11px; padding: 1px 7px; border-radius: 9px; }
+  .btn { border: 0; border-radius: 16px; padding: 13px 16px; font: inherit; font-weight: 800; cursor: pointer; width: 100%; font-size: 14px; }
+  .btn.pri { background: var(--hero); color: #fff; box-shadow: 0 8px 18px rgba(37,99,235,.35); } .btn.out { background: transparent; border: 1.5px solid var(--a-border); color: var(--a-ink); }
+  .hero { background: var(--hero); color: #fff; border-radius: 26px; padding: 16px; box-shadow: 0 10px 24px rgba(37,99,235,.33); }
+  .pill { background: #fff; border-radius: 16px; padding: 4px 10px; font-weight: 900; font-size: 11px; display: inline-flex; align-items: center; gap: 6px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .bar { height: 7px; background: rgba(255,255,255,.25); border-radius: 6px; overflow: hidden; margin-top: 12px; } .bar i { display: block; height: 100%; background: #fff; border-radius: 6px; }
+  .info { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+  .info > div, .card { background: var(--a-card); border-radius: 18px; padding: 12px; box-shadow: var(--a-shadow); }
+  .info .ico { width: 28px; height: 28px; border-radius: 9px; display: grid; place-items: center; font-size: 14px; margin-bottom: 6px; } .info small { color: var(--a-muted); font-weight: 700; font-size: 10px; display: block; }
+  .info b { font-size: 13px; } .card { margin-top: 12px; } .card h4 { margin: 0 0 8px; font-size: 15px; }
+  .qrow { display: flex; align-items: center; gap: 10px; background: var(--a-card); border-radius: 18px; padding: 11px; margin-top: 8px; box-shadow: var(--a-shadow); cursor: pointer; }
+  .qrow .bar2 { width: 5px; align-self: stretch; border-radius: 4px; }
+  .tl { display: grid; grid-template-columns: 20px 1fr; gap: 0 10px; } .tl .d { width: 18px; height: 18px; border-radius: 50%; border: 2px solid; display: grid; place-items: center; font-size: 10px; color: #fff; margin-top: 1px; }
+  .tl .ln { width: 2px; background: var(--a-border); margin: 2px auto; min-height: 18px; } .tl b { font-size: 13px; display: block; } .tl small { color: var(--a-muted); font-size: 11px; font-weight: 600; }
+  .share { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
+  .st { background: var(--a-card); border-radius: 18px; padding: 12px 6px 10px; text-align: center; box-shadow: var(--a-shadow); border: 0; font: inherit; color: var(--a-ink); cursor: pointer; }
+  .st .g { width: 46px; height: 46px; border-radius: 16px; margin: 0 auto 8px; display: grid; place-items: center; color: #fff; font-size: 22px; } .st b { display: block; font-size: 13px; } .st small { color: var(--a-muted); font-size: 10px; font-weight: 600; line-height: 1.2; display: block; margin-top: 2px; }
+  .msg { white-space: pre-wrap; background: var(--a-soft2); border-radius: 14px; padding: 10px; font-size: 11px; line-height: 1.45; margin-top: 10px; max-height: 150px; overflow: auto; color: var(--a-ink); }
+  .a4 { background: #fff; color: #0f172a; border-radius: 6px; padding: 10px; box-shadow: 0 6px 18px rgba(0,0,0,.25); font-size: 8px; }
+  .a4 .h { background: linear-gradient(135deg, #2563eb, #5b34d6); border-radius: 8px; color: #fff; padding: 10px; display: flex; justify-content: space-between; align-items: center; }
+  .a4 table { width: 100%; border-collapse: collapse; margin-top: 8px; } .a4 th { background: #2563eb; color: #fff; text-align: right; padding: 4px 5px; } .a4 th:first-child, .a4 td:first-child { text-align: left; }
+  .a4 td { padding: 4px 5px; text-align: right; border-bottom: 1px solid #e2e8f0; } .a4 .i4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-top: 8px; } .a4 .i4 div { background: #f1f5f9; border-radius: 6px; padding: 5px; } .a4 .i4 small { color: #64748b; display: block; font-size: 6.5px; }
+  .a4 .tot { margin: 8px 0 0 auto; width: 55%; background: #f1f5f9; border-radius: 8px; padding: 7px; }
+  .note { font-size: 12px; color: var(--muted); margin-top: 16px; line-height: 1.5; }
+  @media (max-width: 880px) { .wrap { grid-template-columns: 1fr; } .phonebox { order: -1; } .phone { transform-origin: top center; } }
+  @media (max-width: 440px) { .phone { width: 100%; height: 760px; } }
+</style>
+
+<div class="wrap">
+  <div>
+    <h1>Caisse POS : les nouveaux écrans</h1>
+    <p class="lead">Aperçu interactif de la page Caisse refaite et des devis. Touchez dans le téléphone : scannez, ajoutez des articles, faites glisser pour encaisser, créez un devis et envoyez-le.</p>
+    <div class="steps" id="steps"></div>
+    <p class="note">Maquette web fidèle au design de l'app Android. Les envois réels (WhatsApp, SMS, e-mail, PDF, téléchargement) se font dans l'app sur le téléphone ; ici, le message qui serait envoyé s'affiche.</p>
+  </div>
+  <div class="phonebox"><div class="phone"><div class="notch"></div><div class="screen" id="screen"></div></div></div>
+</div>
+
+<script>
+const PRODUCTS = [
+  { n: 'Eau minérale', p: 0.8, c: '#3b82f6' }, { n: 'Baguette', p: 0.25, c: '#f97316' }, { n: "Jus d'orange", p: 2.2, c: '#eab308' },
+  { n: 'Biscuits', p: 1.5, c: '#ef4444' }, { n: 'Lait 1L', p: 1.35, c: '#06b6d4' }, { n: 'Café', p: 3.2, c: '#ec4899' },
+  { n: 'Yaourt', p: 0.6, c: '#10b981' }, { n: 'Chocolat noir', p: 1.9, c: '#8b5cf6' }, { n: 'Tomates /kg', p: 1.8, c: '#22c55e' },
+];
+const SHOP = 'Épicerie Chez Sami';
+const money = v => v.toFixed(3).replace('.', ',') + ' DT';
+const qfmt = q => (Number.isInteger(q) ? String(q) : String(q).replace('.', ','));
+const fmtDate = d => d.toLocaleDateString('fr-FR');
+const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+
+let st = {
+  screen: 'cashier', sheet: null, cart: [], mult: 1, last: null, toast: null, quotes: [], sel: null, paid: false, qdays: 15, undoStack: [],
+};
+const seedQuotes = () => {
+  const now = new Date();
+  st.quotes = [
+    { id: 7, date: addDays(now, -3), days: 15, customer: 'Ali Ben Salah', phone: '20 123 456', note: 'Livraison incluse', status: 'pending',
+      lines: [{ n: 'Eau minérale', p: 0.8, q: 10, c: '#3b82f6' }, { n: 'Tomates /kg', p: 1.8, q: 2.5, c: '#22c55e' }], disc: 10 },
+    { id: 6, date: addDays(now, -12), days: 15, customer: 'Café du Port', phone: '+216 98 765 432', note: '', status: 'pending',
+      lines: [{ n: 'Café', p: 3.2, q: 12, c: '#ec4899' }, { n: 'Lait 1L', p: 1.35, q: 24, c: '#06b6d4' }], disc: 0 },
+    { id: 5, date: addDays(now, -30), days: 15, customer: 'Mme Houda', phone: '', note: '', status: 'accepted',
+      lines: [{ n: 'Jus d\'orange', p: 2.2, q: 6, c: '#eab308' }], disc: 0 },
+    { id: 4, date: addDays(now, -40), days: 30, customer: 'Restaurant Le Phare', phone: '71 222 333', note: '', status: 'refused',
+      lines: [{ n: 'Biscuits', p: 1.5, q: 40, c: '#ef4444' }], disc: 5 },
+  ];
+};
+seedQuotes();
+const qSub = q => q.lines.reduce((s, l) => s + l.p * l.q, 0);
+const qDisc = q => Math.round(qSub(q) * q.disc) / 100;
+const qTot = q => qSub(q) - qDisc(q);
+const qNum = q => `DV-${q.date.getFullYear()}-${String(q.id).padStart(4, '0')}`;
+const qUntil = q => addDays(q.date, q.days);
+const daysLeft = q => Math.ceil((qUntil(q) - new Date()) / 864e5);
+const qExpired = q => q.status === 'pending' && daysLeft(q) < 0;
+const qColor = q => qExpired(q) ? '#64748b' : { pending: '#f59e0b', accepted: '#16a34a', refused: '#dc2626' }[q.status];
+const qLabel = q => qExpired(q) ? 'Expiré' : { pending: 'En attente', accepted: 'Accepté', refused: 'Refusé' }[q.status];
+const cartTotal = () => st.cart.reduce((s, l) => s + l.p * l.q, 0);
+const cartCount = () => st.cart.reduce((s, l) => s + (l.kg ? 1 : l.q), 0);
+
+function message(q) {
+  const lines = q.lines.slice(0, 8).map(l => `• ${l.n.replace(' /kg', '')} × ${qfmt(l.q)}${l.n.includes('/kg') ? ' kg' : ''} — ${money(l.p * l.q)}`).join('\n');
+  return `Bonjour ${q.customer},\n\nVoici votre devis ${qNum(q)} de ${SHOP} :\n\n${lines}\n\n${qDisc(q) > 0 ? `Remise : −${money(qDisc(q))}\n` : ''}TOTAL : ${money(qTot(q))}\nValable jusqu'au ${fmtDate(qUntil(q))}.\n\nMerci de votre confiance !`;
+}
+function waNumber(raw) {
+  let d = raw.replace(/[^\d+]/g, ''); if (!d) return null;
+  if (d.startsWith('+')) return d.slice(1); if (d.startsWith('00')) return d.slice(2); if (d.length === 8) return '216' + d; return d;
+}
+
+let toastTimer;
+function flash(t) { st.toast = t; render(); clearTimeout(toastTimer); toastTimer = setTimeout(() => { st.toast = null; render(); }, 1300); }
+function add(p, q = st.mult) {
+  const kg = p.n.includes('/kg'); const qty = kg ? 0.5 : q;
+  const ex = st.cart.find(l => l.n === p.n);
+  if (ex) ex.q = Math.round((ex.q + qty) * 1000) / 1000; else st.cart.push({ n: p.n, p: p.p, q: qty, c: p.c, kg });
+  st.last = { n: p.n, q: qty }; st.mult = 1; st.paid = false;
+}
+function undo() {
+  if (!st.last) return; const l = st.cart.find(x => x.n === st.last.n); if (!l) return;
+  l.q = Math.round((l.q - st.last.q) * 1000) / 1000; if (l.q <= 0) st.cart = st.cart.filter(x => x !== l); st.last = null;
+}
+const scanPool = [0, 1, 2, 3];
+let scanIdx = 0;
+
+const ICONS = { cashier: '▦', products: '▤', stock: '▥', history: '☰', settings: '⚙' };
+function tabbar(on) {
+  const t = [['cashier', 'Caisse'], ['products', 'Produits'], ['stock', 'Stock'], ['history', 'Historique'], ['settings', 'Réglages']];
+  return `<div class="tabbar">${t.map(([k, l]) => `<div class="${k === on ? 'on' : ''}"><i>${ICONS[k]}</i>${l}</div>`).join('')}</div>`;
+}
+
+function cashier() {
+  const lines = st.cart.map(l => `<div class="line"><div class="av" style="background:${l.c}">${l.n[0]}</div><div class="grow"><b>${l.n.replace(' /kg', '')}</b><small>${qfmt(l.q)}${l.kg ? ' kg' : ''} × ${money(l.p)}</small></div><div class="amt">${money(l.p * l.q)}</div></div>`).join('');
+  return `<div class="pad"></div>
+  <div class="body">
+    <div class="row" style="padding-top:2px"><div class="grow"><div style="font-weight:900;font-size:20px;letter-spacing:-.4px">${SHOP}</div><div style="color:var(--a-accent);font-weight:700;font-size:12px">Caisse</div></div>
+      <button class="iconbtn" data-act="keypad" aria-label="Clavier de prix">⠿</button><button class="iconbtn" data-act="catalog" aria-label="Articles">▦</button></div>
+    <div class="cam" data-act="scan" style="cursor:pointer"><div class="bc"></div><i class="cor tl"></i><i class="cor tr"></i><i class="cor bl"></i><i class="cor br"></i><div class="laser"></div>
+      ${st.toast ? `<div class="toast">${st.toast}</div>` : ''}</div>
+    <div class="hdr"><div><h3>Articles scannés</h3><span class="muted" style="font-size:12px;font-weight:600">${cartCount()} article${cartCount() > 1 ? 's' : ''}</span></div>
+      <div class="total"><small>TOTAL À PAYER</small><b>${money(cartTotal())}</b></div></div>
+    ${st.cart.length ? `<div class="chips"><button class="chip" data-act="devis">📄 Créer un devis</button><button class="chip" data-act="hold">⏸ Mettre en attente</button><button class="chip" data-act="clear">Vider</button></div>` : ''}
+    ${lines || `<div class="empty">Touchez la caméra pour scanner,<br>ou ouvrez les articles ▦</div>`}
+    ${st.paid ? `<div class="card" style="text-align:center;background:#dcfce7;color:#15803d;font-weight:900">✓ Payé ! Ticket imprimé</div>` : ''}
+  </div>
+  <div class="bottom"><button class="gridbtn" data-act="catalog" aria-label="Articles">▦</button>
+    <div class="swipe ${st.cart.length ? '' : 'off'}" id="swipe"><span>${st.cart.length ? 'Glisser pour encaisser  ›››' : 'Ajoutez des articles'}</span>${st.cart.length ? '<div class="thumb" id="thumb">›</div>' : ''}</div></div>
+  ${tabbar('cashier')}`;
+}
+
+function catalogSheet() {
+  const tiles = PRODUCTS.map((p, i) => {
+    const l = st.cart.find(x => x.n === p.n);
+    return `<button class="tile" data-add="${i}" style="${l ? `background:${p.c}22;border-color:${p.c}` : ''}"><div class="n"><i style="background:${p.c}">${p.n[0]}</i>${p.n.replace(' /kg', '')}</div><div class="p" style="color:${p.c}">${p.n.includes('/kg') ? money(p.p).replace(' DT', '/kg') : money(p.p).replace(' DT', '')}</div>${l ? `<div class="b" style="background:${p.c}">${qfmt(l.q)}</div>` : ''}</button>`;
+  }).join('');
+  return `<div class="scrim" data-act="close"></div><div class="sheet" style="height:78%"><div class="grab"></div>
+    <div class="row"><h2 class="grow">Articles</h2><b style="color:var(--a-accent)">${cartCount()} · ${money(cartTotal())}</b></div>
+    <div style="background:var(--a-soft2);border-radius:14px;padding:9px 12px;margin-top:10px;color:var(--a-muted);font-weight:600">🔍 Chercher un article</div>
+    <div class="chips">${[1, 2, 3, 5, 10].map(n => `<button class="chip ${st.mult === n ? 'sel' : ''}" data-mult="${n}">×${n}</button>`).join('')}${st.last ? '<button class="chip" data-act="undo">↶ Annuler</button>' : ''}</div>
+    <div class="tiles">${tiles}</div>
+    <button class="btn pri" data-act="close" style="margin-top:8px">✓ Terminé · ${money(cartTotal())}</button></div>`;
+}
+
+function devisForm() {
+  return `<div class="scrim" data-act="close"></div><div class="sheet"><div class="grab"></div><h2>Nouveau devis</h2>
+  <div class="muted" style="font-weight:700;margin:2px 0 10px">${cartCount()} articles · ${money(cartTotal())}</div>
+  <label style="font-size:11px;font-weight:800;color:var(--a-muted)">Nom du client</label>
+  <input id="qname" value="Karim Mansour" style="width:100%;padding:11px;border-radius:12px;border:1.5px solid var(--a-border);font:inherit;margin:4px 0 8px;background:var(--a-card);color:var(--a-ink)">
+  <label style="font-size:11px;font-weight:800;color:var(--a-muted)">Téléphone</label>
+  <input id="qphone" value="22 456 789" style="width:100%;padding:11px;border-radius:12px;border:1.5px solid var(--a-border);font:inherit;margin:4px 0 10px;background:var(--a-card);color:var(--a-ink)">
+  <div class="muted" style="font-size:11px;font-weight:800">Validité</div><div class="chips">${[7, 15, 30, 60].map(d => `<button class="chip ${st.qdays === d ? 'sel' : ''}" data-days="${d}">${d} jours</button>`).join('')}</div>
+  <button class="btn pri" data-act="createQuote" style="margin-top:10px">Créer le devis</button></div>`;
+}
+
+function quotesList() {
+  const open = st.quotes.filter(q => q.status === 'pending' && !qExpired(q)), won = st.quotes.filter(q => q.status === 'accepted');
+  return `<div class="pad"></div><div class="body">
+    <div class="row" style="padding-top:2px"><button class="iconbtn" data-act="goHome" aria-label="Retour">‹</button><div class="grow" style="font-weight:900;font-size:20px">Devis</div></div>
+    <div class="info" style="margin-top:10px"><div><small>En attente</small><b style="color:#f59e0b;font-size:15px">${open.length} · ${money(open.reduce((s, q) => s + qTot(q), 0))}</b></div><div><small>Acceptés</small><b style="color:#16a34a;font-size:15px">${won.length} · ${money(won.reduce((s, q) => s + qTot(q), 0))}</b></div></div>
+    <div class="chips"><button class="chip sel">Tous</button><button class="chip">En attente</button><button class="chip">Acceptés</button><button class="chip">Refusés</button><button class="chip">Expirés</button></div>
+    ${st.quotes.map(q => `<div class="qrow" data-open="${q.id}"><div class="bar2" style="background:${qColor(q)}"></div><div class="grow"><b style="font-size:14px">${q.customer || 'Client non renseigné'}</b><div class="muted" style="font-size:11px;font-weight:600">${qNum(q)} · ${fmtDate(q.date)}</div>
+      <span style="display:inline-block;margin-top:5px;background:${qColor(q)}24;color:${qColor(q)};font-weight:900;font-size:10px;padding:2px 9px;border-radius:10px">${q.status === 'pending' && !qExpired(q) && daysLeft(q) <= 3 ? `En attente · J-${daysLeft(q)}` : qLabel(q)}</span></div>
+      <b style="color:var(--a-accent)">${money(qTot(q))}</b></div>`).join('')}
+  </div>${tabbar('history')}`;
+}
+
+function quoteDetail() {
+  const q = st.quotes.find(x => x.id === st.sel) || st.quotes[0]; const left = daysLeft(q); const col = qColor(q);
+  const elapsed = Math.min(1, Math.max(0, (q.days - left) / q.days));
+  const tl = (title, sub, done, last, c) => `<div class="tl"><div><div class="d" style="border-color:${c};background:${done ? c : 'transparent'}">${done ? '✓' : ''}</div>${last ? '' : '<div class="ln"></div>'}</div><div style="padding-bottom:10px"><b>${title}</b><small>${sub}</small></div></div>`;
+  return `<div class="pad"></div><div class="body">
+    <div class="row" style="padding-top:2px"><button class="iconbtn" data-act="goList" aria-label="Retour">‹</button><div class="grow" style="font-weight:900;font-size:17px">${qNum(q)}</div><button class="iconbtn" data-act="share" aria-label="Envoyer">➤</button></div>
+    <div class="hero" style="margin-top:10px"><div class="row"><span class="pill"><i class="dot" style="background:${col}"></i><span style="color:${col}">${qLabel(q)}</span></span><div class="grow"></div><span style="color:#bfd4ff;font-weight:700;font-size:12px">${fmtDate(q.date)}</span></div>
+      <div style="margin-top:14px;font-size:10px;letter-spacing:1.2px;font-weight:800;color:#bfd4ff">TOTAL DU DEVIS</div><div style="font-size:34px;font-weight:900;letter-spacing:-1px">${money(qTot(q))}</div>
+      <div style="color:#d6e4ff;font-weight:700;font-size:12px">${q.lines.length} lignes${qDisc(q) > 0 ? ` · remise −${money(qDisc(q))}` : ''}</div>
+      ${q.status === 'pending' ? `<div class="bar"><i style="width:${elapsed * 100}%"></i></div><div style="font-weight:800;font-size:12px;margin-top:6px">${left < 0 ? `Expiré depuis ${-left} jour(s)` : left === 0 ? "Expire aujourd'hui" : `Expire dans ${left} jours · le ${fmtDate(qUntil(q))}`}</div>` : ''}</div>
+    <div class="info"><div><div class="ico" style="background:#dbe7fe;color:#1e40af">👤</div><small>Client</small><b>${q.customer || 'Non renseigné'}</b></div><div><div class="ico" style="background:#dcfce7;color:#16a34a">📞</div><small>Téléphone</small><b>${q.phone || '—'}</b></div>
+      <div><div class="ico" style="background:#fef3c7;color:#d97706">📅</div><small>Validité</small><b>${q.days} jours</b></div><div><div class="ico" style="background:#ede9fe;color:#7c3aed">🪪</div><small>Établi par</small><b>Sami</b></div></div>
+    <div class="card"><h4>Articles (${q.lines.length})</h4>${q.lines.map(l => `<div class="row" style="padding:6px 0;border-top:1px solid var(--a-border)"><div class="av" style="background:${l.c};width:34px;height:34px">${l.n[0]}</div><div class="grow"><b style="font-size:13px">${l.n.replace(' /kg', '')}</b><div class="muted" style="font-size:11px;font-weight:600">${qfmt(l.q)}${l.n.includes('/kg') ? ' kg' : ''} × ${money(l.p)}</div></div><b style="color:var(--a-accent)">${money(l.p * l.q)}</b></div>`).join('')}</div>
+    <div class="card"><div class="row"><span class="muted grow" style="font-weight:700">Sous-total</span><b>${money(qSub(q))}</b></div>${qDisc(q) > 0 ? `<div class="row" style="color:#16a34a;margin-top:6px"><span class="grow" style="font-weight:700">Remise (${q.disc} %)</span><b>−${money(qDisc(q))}</b></div>` : ''}
+      <div class="row" style="border-top:1px solid var(--a-border);margin-top:10px;padding-top:10px"><b class="grow" style="font-size:15px">TOTAL</b><b style="font-size:20px;color:var(--a-accent)">${money(qTot(q))}</b></div></div>
+    <div class="card"><h4>Suivi</h4>${tl('Devis créé', fmtDate(q.date) + ' · Sami', true, false, '#1e40af')}${tl(qExpired(q) ? 'Offre expirée' : 'Offre valable', "jusqu'au " + fmtDate(qUntil(q)), qExpired(q), false, qExpired(q) ? '#64748b' : '#f59e0b')}${tl(q.status === 'pending' ? 'Réponse du client' : q.status === 'accepted' ? 'Accepté par le client' : 'Refusé par le client', q.status === 'pending' ? 'en attente' : 'décision enregistrée', q.status !== 'pending', true, q.status === 'refused' ? '#dc2626' : '#16a34a')}</div>
+    ${q.note ? `<div class="card"><h4>Remarques</h4><span class="muted" style="font-weight:600">${q.note}</span></div>` : ''}
+    <button class="btn pri" data-act="convert" style="margin-top:14px">Convertir en vente · ${money(qTot(q))}</button>
+    <button class="btn out" data-act="share" style="margin-top:8px">➤ Envoyer · WhatsApp, e-mail, PDF</button>
+  </div>`;
+}
+
+function shareSheet() {
+  const q = st.quotes.find(x => x.id === st.sel) || st.quotes[0]; const wa = waNumber(q.phone);
+  const T = (g, ic, l, s, act) => `<button class="st" data-share="${act}"><div class="g" style="background:${g}">${ic}</div><b>${l}</b><small>${s}</small></button>`;
+  return `<div class="scrim" data-act="closeShare"></div><div class="sheet" style="max-height:90%"><div class="grab"></div><h2>Envoyer le devis</h2>
+  <div class="muted" style="font-weight:700;font-size:12px;margin-top:2px">${qNum(q)} · ${q.customer}${q.phone ? ' · ' + q.phone : ''}</div>
+  <div class="share">${T('linear-gradient(135deg,#34d673,#12a150)', '💬', 'WhatsApp', wa ? 'Message au client' : 'Choisir un contact', 'wa')}${T('linear-gradient(135deg,#60a5fa,#2563eb)', '✉', 'SMS', 'Message au client', 'sms')}${T('linear-gradient(135deg,#fb7185,#e11d48)', '@', 'E-mail', 'Message prêt', 'mail')}
+  ${T('linear-gradient(135deg,#a78bfa,#6d28d9)', '⎙', 'PDF', 'WhatsApp, Gmail, Drive…', 'pdf')}${T('linear-gradient(135deg,#fbbf24,#ea580c)', '⤓', 'Télécharger', 'Enregistrer ou imprimer', 'dl')}${T('linear-gradient(135deg,#22d3ee,#0891b2)', '👁', 'Aperçu', 'Voir le PDF', 'preview')}</div>
+  <div class="msg" id="msg">${st.shareNote ? st.shareNote + '\n\n' : ''}${message(q).replace(/</g, '&lt;')}</div>
+  <button class="btn out" data-share="copy" style="margin-top:10px">⧉ Copier le message</button></div>`;
+}
+
+function preview() {
+  const q = st.quotes.find(x => x.id === st.sel) || st.quotes[0];
+  return `<div class="pad"></div><div class="body" style="background:#cbd5e1;padding-top:10px">
+    <div class="row" style="padding-bottom:10px"><button class="iconbtn" data-act="share-back" aria-label="Retour">‹</button><b class="grow">Aperçu · ${qNum(q)}</b></div>
+    <div class="a4"><div class="h"><div><b style="font-size:11px">${SHOP}</b><div style="letter-spacing:2px;font-size:7px;color:#bfd4ff;font-weight:700">DEVIS</div></div><div style="text-align:right"><b style="font-size:13px">${qNum(q)}</b><div style="color:#bfd4ff">Émis le ${fmtDate(q.date)}</div></div></div>
+    <div class="i4"><div><small>Client</small><b>${q.customer}</b></div><div><small>Téléphone</small><b>${q.phone || '—'}</b></div><div><small>Valable jusqu'au</small><b>${fmtDate(qUntil(q))}</b></div><div><small>Établi par</small><b>Sami</b></div></div>
+    <table><tr><th>Désignation</th><th>Qté</th><th>Prix unit.</th><th>Total</th></tr>${q.lines.map(l => `<tr><td>${l.n.replace(' /kg', '')}</td><td>${qfmt(l.q)}${l.n.includes('/kg') ? ' kg' : ''}</td><td>${money(l.p)}</td><td>${money(l.p * l.q)}</td></tr>`).join('')}</table>
+    <div class="tot"><div style="display:flex;justify-content:space-between"><span style="color:#64748b">Sous-total</span><span>${money(qSub(q))}</span></div>${qDisc(q) > 0 ? `<div style="display:flex;justify-content:space-between;color:#16a34a"><span>Remise</span><span>−${money(qDisc(q))}</span></div>` : ''}<div style="display:flex;justify-content:space-between;border-top:1px solid #e2e8f0;margin-top:4px;padding-top:4px"><b>TOTAL</b><b style="color:#2563eb;font-size:11px">${money(qTot(q))}</b></div></div>
+    <div style="display:flex;gap:10px;margin-top:12px"><div style="flex:1;color:#64748b">Ce devis est valable ${q.days} jours à compter de sa date d'émission.</div><div style="width:34%;height:44px;border:1px solid #e2e8f0;border-radius:6px;padding:4px;color:#64748b">Bon pour accord — date et signature</div></div></div>
+    <div style="height:70px"></div></div>
+    <div class="bottom" style="background:var(--a-card)"><button class="btn out" data-share="dl" style="width:40%">⤓ Télécharger</button><button class="btn pri" data-act="share">➤ Envoyer</button></div>`;
+}
+
+function render() {
+  const sc = document.getElementById('screen');
+  let html = '';
+  if (st.screen === 'cashier') html = cashier(); else if (st.screen === 'quotes') html = quotesList(); else if (st.screen === 'detail') html = quoteDetail(); else if (st.screen === 'preview') html = preview();
+  if (st.sheet === 'catalog') html += catalogSheet(); if (st.sheet === 'devis') html += devisForm(); if (st.sheet === 'share') html += shareSheet();
+  sc.innerHTML = html;
+  document.querySelectorAll('.step').forEach(b => b.setAttribute('aria-current', String(b.dataset.go === currentStep())));
+  bindSwipe();
+}
+function currentStep() { if (st.sheet === 'catalog') return 'catalog'; if (st.sheet === 'share') return 'share'; if (st.screen === 'preview') return 'preview'; if (st.screen === 'detail') return 'detail'; if (st.screen === 'quotes') return 'quotes'; return 'cashier'; }
+
+function bindSwipe() {
+  const sw = document.getElementById('swipe'), th = document.getElementById('thumb'); if (!sw || !th) return;
+  let drag = false, x0 = 0, max = 0;
+  const down = e => { drag = true; x0 = e.clientX - th.offsetLeft; max = sw.clientWidth - th.clientWidth - 8; th.setPointerCapture(e.pointerId); th.style.transition = 'none'; };
+  const move = e => { if (!drag) return; const x = Math.min(max, Math.max(4, e.clientX - x0)); th.style.left = x + 'px'; sw.firstChild.style.opacity = 1 - (x / max) * 1.6; };
+  const up = () => { if (!drag) return; drag = false; if (parseFloat(th.style.left) >= max * .85) { st.paid = true; st.cart = []; flash('Paiement validé'); } else { th.style.transition = 'left .2s'; th.style.left = '4px'; sw.firstChild.style.opacity = 1; } };
+  th.addEventListener('pointerdown', down); th.addEventListener('pointermove', move); th.addEventListener('pointerup', up); th.addEventListener('pointercancel', up);
+}
+
+document.getElementById('screen').addEventListener('click', e => {
+  const t = e.target.closest('[data-act],[data-add],[data-mult],[data-days],[data-open],[data-share]'); if (!t) return;
+  const d = t.dataset;
+  if (d.add !== undefined) { add(PRODUCTS[+d.add]); return render(); }
+  if (d.mult) { st.mult = +d.mult; return render(); }
+  if (d.days) { st.qdays = +d.days; const n = document.getElementById('qname').value, p = document.getElementById('qphone').value; render(); document.getElementById('qname').value = n; document.getElementById('qphone').value = p; return; }
+  if (d.open) { st.sel = +d.open; st.screen = 'detail'; return render(); }
+  if (d.share) {
+    const q = st.quotes.find(x => x.id === st.sel) || st.quotes[0]; const wa = waNumber(q.phone);
+    const notes = { wa: `💬 Ouvre WhatsApp : wa.me/${wa || ''}  (message ci-dessous prérempli)`, sms: `✉ Ouvre les SMS vers +${wa || '…'} avec le message`, mail: '@ Ouvre votre application e-mail : objet « Devis ' + qNum(q) + ' – ' + SHOP + ' »',
+      pdf: '⎙ Menu de partage Android avec devis-' + qNum(q) + '.pdf en pièce jointe', dl: '⤓ Boîte d\'impression Android → « Enregistrer au format PDF »', copy: '⧉ Message copié dans le presse-papiers' };
+    if (d.share === 'preview') { st.sheet = null; st.screen = 'preview'; return render(); }
+    st.shareNote = notes[d.share]; return render();
+  }
+  switch (d.act) {
+    case 'scan': add(PRODUCTS[scanPool[scanIdx++ % scanPool.length]], 1); st.toast = PRODUCTS[scanPool[(scanIdx - 1) % scanPool.length]].n + ' ajouté'; render(); clearTimeout(toastTimer); toastTimer = setTimeout(() => { st.toast = null; render(); }, 1100); break;
+    case 'catalog': st.sheet = 'catalog'; render(); break;
+    case 'keypad': add({ n: 'Article', p: 1.5, c: '#64748b' }, 1); flash('Article 1,500 DT ajouté'); break;
+    case 'close': st.sheet = null; render(); break;
+    case 'undo': undo(); render(); break;
+    case 'clear': st.cart = []; render(); break;
+    case 'hold': flash('Ticket mis en attente'); break;
+    case 'devis': st.sheet = 'devis'; render(); break;
+    case 'createQuote': {
+      const name = document.getElementById('qname').value, phone = document.getElementById('qphone').value;
+      const id = Math.max(...st.quotes.map(q => q.id)) + 1;
+      st.quotes.unshift({ id, date: new Date(), days: st.qdays, customer: name, phone, note: '', status: 'pending', disc: 0, lines: st.cart.map(l => ({ n: l.n + (l.kg ? '' : ''), p: l.p, q: l.q, c: l.c })) });
+      st.cart = []; st.sheet = null; st.sel = id; st.screen = 'detail'; render(); break; }
+    case 'goHome': st.screen = 'cashier'; render(); break;
+    case 'goList': st.screen = 'quotes'; render(); break;
+    case 'share': st.shareNote = null; st.sheet = 'share'; render(); break;
+    case 'closeShare': st.sheet = null; render(); break;
+    case 'share-back': st.screen = 'detail'; render(); break;
+    case 'convert': { const q = st.quotes.find(x => x.id === st.sel) || st.quotes[0]; q.status = 'accepted'; st.cart = q.lines.map(l => ({ n: l.n, p: l.p, q: l.q, c: l.c, kg: l.n.includes('/kg') })); st.screen = 'cashier'; flash('Panier chargé depuis le devis'); break; }
+  }
+});
+
+const STEPS = [
+  ['cashier', 'Caisse', 'Scanner, tuiles, total en direct, glisser pour encaisser', '▦', '#2563eb'],
+  ['catalog', 'Articles', 'Feuille de tuiles colorées, ×2 à ×10, annuler', '▤', '#f97316'],
+  ['quotes', 'Liste des devis', 'Montants en attente et acceptés, filtres, statuts', '☰', '#8b5cf6'],
+  ['detail', 'Page de détails du devis', 'Total, validité, client, articles, suivi, actions', '📄', '#0891b2'],
+  ['share', 'Envoyer le devis', 'WhatsApp, SMS, e-mail, PDF, télécharger, aperçu', '➤', '#16a34a'],
+  ['preview', 'Aperçu du PDF', 'Le devis tel que le client le reçoit', '👁', '#e11d48'],
+];
+document.getElementById('steps').innerHTML = STEPS.map(s => `<button class="step" data-go="${s[0]}"><span class="ic" style="background:${s[4]}">${s[3]}</span><b>${s[1]}</b><span>${s[2]}</span></button>`).join('');
+document.getElementById('steps').addEventListener('click', e => {
+  const b = e.target.closest('.step'); if (!b) return; const k = b.dataset.go; st.sheet = null; st.shareNote = null;
+  if (k === 'cashier') { st.screen = 'cashier'; if (!st.cart.length) { add(PRODUCTS[0], 1); add(PRODUCTS[1], 1); } }
+  if (k === 'catalog') { st.screen = 'cashier'; st.sheet = 'catalog'; if (!st.cart.length) { add(PRODUCTS[0], 1); add(PRODUCTS[1], 1); } }
+  if (k === 'quotes') st.screen = 'quotes';
+  if (k === 'detail') { st.sel = 7; st.screen = 'detail'; }
+  if (k === 'share') { st.sel = 7; st.screen = 'detail'; st.sheet = 'share'; }
+  if (k === 'preview') { st.sel = 7; st.screen = 'preview'; }
+  render();
+});
+add(PRODUCTS[0], 1); add(PRODUCTS[1], 1); add(PRODUCTS[2], 1); st.last = null;
+render();
+</script>

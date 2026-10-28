@@ -8,6 +8,9 @@ class AppSettings {
   final String printerMac;
   final String printerName;
 
+  /// Daily sales target (0 = disabled).
+  final double dailyGoal;
+
   const AppSettings({
     this.storeName = 'Ma boutique',
     this.currency = 'DT',
@@ -15,6 +18,7 @@ class AppSettings {
     this.qrTemplate = 'https://pay.exemple.tn/?m={amount}',
     this.printerMac = '',
     this.printerName = '',
+    this.dailyGoal = 500,
   });
 
   AppSettings copyWith({
@@ -24,6 +28,7 @@ class AppSettings {
     String? qrTemplate,
     String? printerMac,
     String? printerName,
+    double? dailyGoal,
   }) =>
       AppSettings(
         storeName: storeName ?? this.storeName,
@@ -32,6 +37,7 @@ class AppSettings {
         qrTemplate: qrTemplate ?? this.qrTemplate,
         printerMac: printerMac ?? this.printerMac,
         printerName: printerName ?? this.printerName,
+        dailyGoal: dailyGoal ?? this.dailyGoal,
       );
 
   String money(double v) => '${v.toStringAsFixed(decimals).replaceAll('.', ',')} $currency';
@@ -51,6 +57,7 @@ class SettingsStore {
       qrTemplate: sp.getString('qrTemplate') ?? d.qrTemplate,
       printerMac: sp.getString('printerMac') ?? '',
       printerName: sp.getString('printerName') ?? '',
+      dailyGoal: sp.getDouble('dailyGoal') ?? d.dailyGoal,
     );
   }
 
@@ -73,5 +80,6 @@ class SettingsStore {
     await sp.setString('qrTemplate', s.qrTemplate);
     await sp.setString('printerMac', s.printerMac);
     await sp.setString('printerName', s.printerName);
+    await sp.setDouble('dailyGoal', s.dailyGoal);
   }
 }

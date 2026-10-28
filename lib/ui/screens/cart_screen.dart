@@ -14,6 +14,7 @@ import '../../logic/settings_provider.dart';
 import '../../data/settings_store.dart';
 import '../theme.dart';
 import '../widgets.dart';
+import '../widgets/daily_goal_card.dart';
 import '../widgets/quick_keypad.dart';
 import '../widgets/swipe_to_pay.dart';
 import 'closing_screen.dart';
@@ -935,6 +936,7 @@ class _CartScreenState extends State<CartScreen> {
               ),
             ),
           ),
+        const DailyGoalCard(),
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 14, 20, 4),
           child: Row(
