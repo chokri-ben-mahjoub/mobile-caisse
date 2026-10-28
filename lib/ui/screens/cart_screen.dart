@@ -15,6 +15,7 @@ import '../../data/settings_store.dart';
 import '../theme.dart';
 import '../widgets.dart';
 import '../widgets/quick_keypad.dart';
+import '../widgets/swipe_to_pay.dart';
 import 'closing_screen.dart';
 import 'payment_screen.dart';
 import 'product_form_screen.dart';
@@ -27,6 +28,8 @@ class CartScreen extends StatefulWidget {
 }
 
 class _CartScreenState extends State<CartScreen> {
+  bool _showCatalog = true;
+  String _q = '';
   final _controller = MobileScannerController(
     detectionSpeed: DetectionSpeed.noDuplicates,
     formats: const [
@@ -586,7 +589,12 @@ class _CartScreenState extends State<CartScreen> {
     final cart = context.watch<CartProvider>();
     final s = context.watch<SettingsProvider>().settings;
     final auth = context.watch<AuthProvider>();
-    final favorites = context.watch<ProductsProvider>().favorites;
+    final allProducts = context.watch<ProductsProvider>().all;
+    // Favourites first, then the rest; filtered by the search box.
+    final catalog = [
+      ...allProducts.where((p) => p.favorite),
+      ...allProducts.where((p) => !p.favorite),
+    ].where((p) => _q.isEmpty || p.name.toLowerCase().contains(_q) || p.barcode.contains(_q)).toList();
     final lines = cart.lines;
 
     return Column(
@@ -655,6 +663,11 @@ class _CartScreenState extends State<CartScreen> {
                     : Icons.videocam_off_outlined,
                 tooltip: _cameraOn ? 'Couper la caméra' : 'Activer la caméra',
                 onPressed: () => setState(() => _cameraOn = !_cameraOn),
+              ),
+              SoftIconButton(
+                icon: _showCatalog ? Icons.grid_view_rounded : Icons.grid_off_rounded,
+                tooltip: _showCatalog ? 'Masquer les articles' : 'Afficher les articles',
+                onPressed: () => setState(() => _showCatalog = !_showCatalog),
               ),
               SoftIconButton(
                 icon: Icons.dialpad_rounded,
@@ -788,11 +801,25 @@ class _CartScreenState extends State<CartScreen> {
               ),
             ),
           ),
-        if (favorites.isNotEmpty)
+        if (_showCatalog && catalog.isNotEmpty || _q.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: TextField(
+              onChanged: (v) => setState(() => _q = v.trim().toLowerCase()),
+              textInputAction: TextInputAction.search,
+              decoration: InputDecoration(
+                isDense: true,
+                prefixIcon: const Icon(Icons.search_rounded),
+                hintText: 'Chercher un article',
+                suffixIcon: _q.isEmpty ? null : const Icon(Icons.filter_alt_rounded, size: 18),
+              ),
+            ),
+          ),
+        if (_showCatalog && catalog.isNotEmpty)
           ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 188),
+            constraints: const BoxConstraints(maxHeight: 214),
             child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
               child: LayoutBuilder(
                 builder: (ctx, c) {
                   const gap = 8.0;
@@ -801,7 +828,7 @@ class _CartScreenState extends State<CartScreen> {
                     spacing: gap,
                     runSpacing: gap,
                     children: [
-                      for (final f in favorites)
+                      for (final f in catalog)
                         _QuickTile(
                           product: f,
                           width: w,
@@ -884,7 +911,7 @@ class _CartScreenState extends State<CartScreen> {
                       ),
                       const SizedBox(height: 14),
                       const Text(
-                        'Scannez un produit',
+                        'Scannez ou touchez un article',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w800,
@@ -913,11 +940,10 @@ class _CartScreenState extends State<CartScreen> {
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 6, 16, 12),
-          child: PrimaryButton(
-            icon: Icons.check_circle_rounded,
-            label: 'Valider la commande',
+          child: SwipeToPay(
+            label: cart.isEmpty ? 'Ajoutez des articles' : 'Glisser pour encaisser',
             trailing: cart.isEmpty ? null : s.money(cart.total),
-            onPressed: cart.isEmpty
+            onConfirm: cart.isEmpty
                 ? null
                 : () => Navigator.push(
                     context,
