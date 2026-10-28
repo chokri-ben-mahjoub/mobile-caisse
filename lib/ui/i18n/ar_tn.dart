@@ -4,6 +4,11 @@
 /// Exact French text → Arabic. Longer texts also act as phrases inside bigger texts.
 const Map<String, String> arExact = {
   // ---- navigation & general ----
+  'kg': 'كغ',
+  'non suivi': 'موش متابَع',
+  'Remboursement en espèces': 'استرجاع كاش',
+  'Remboursement par QR code': 'استرجاع بكود QR',
+  'Remboursement en crédit': 'استرجاع على الحساب',
   'crédit': 'كريدي',
   'espèces': 'كاش',
   'en attente': 'في الانتظار',
@@ -31,7 +36,7 @@ const Map<String, String> arExact = {
   'Ajouter': 'زيد',
   'Créer': 'اعمل',
   'Choisir': 'اختار',
-  'Terminé': 'كمّلنا',
+  'Terminé': 'تمّ',
   'Ignorer': 'تجاهل',
   'Remplacer': 'بدّل',
   'Retirer': 'شيل',
@@ -491,6 +496,9 @@ const Map<String, String> arExact = {
 /// Patterns with `{}` (any text, translated recursively) and `[s]` (optional plural s).
 /// In the Arabic side `{1}`, `{2}`… insert the captures; `{1?one|many}` picks a form by capture 1.
 const Map<String, String> arPatterns = {
+  'connecté : {}': 'مُتّصل : {1}',
+  '{} kg': '{1} كغ',
+  'Caisse, {}': 'الكاسة، {1}',
   'ticket {}': 'وصل {1}',
   'payé {}': 'خالص {1}',
   'Le code-barres {} n\'est pas dans votre base.\n\nVoulez-vous créer ce produit ?': 'الباركود {1} موش موجود في قاعدتك.\n\nتحب تعمل المنتوج هذا ؟',
@@ -532,7 +540,7 @@ const Map<String, String> arPatterns = {
   '{} / kg': '{1} / كغ',
   '{}/kg': '{1}/كغ',
   'Doit {}': 'عليه {1}',
-  'On lui doit {}': 'نخلّصوه {1}',
+  'On lui doit {}': 'علينا {1}',
   'Reste dû : {}': 'الباقي عليه : {1}',
   'Reste {} à payer': 'باقي {1} للدفع',
   'RESTE {}': 'باقي {1}',

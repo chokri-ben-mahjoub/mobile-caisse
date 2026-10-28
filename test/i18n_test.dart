@@ -44,6 +44,15 @@ void main() {
     expect(ar('  Caisse '), '  الكاسة ');
   });
 
+  test('lists, units and composed labels', () {
+    expect(ar('Produits, Stock, Retours et annulations'), 'المنتوجات، المخزون، الترجيعات والإلغاءات');
+    expect(ar('2,5 kg'), '2,5 كغ');
+    expect(ar('Verrouiller · connecté : Ahmed'), 'اقفل · مُتّصل : Ahmed');
+    expect(ar('Remboursement en espèces'), 'استرجاع كاش');
+    expect(ar('7 jours'), '7 أيام');
+    expect(ar('Role: Gérant'), contains('مسيّر'));
+  });
+
   test('user data is left alone', () {
     expect(ar('Lait Delice 1L'), 'Lait Delice 1L');
     expect(ar('12,500 DT'), '12,500 DT');

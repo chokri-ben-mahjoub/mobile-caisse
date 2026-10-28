@@ -43,6 +43,12 @@ class Tr {
     if (s.contains(' · ')) {
       return s.split(' · ').map((x) => _translate(x, depth)).join(' · ');
     }
+    // "A, B, C" (lists of access rights): translate each item, keep it only if something changed.
+    if (s.contains(', ') && !s.contains('.')) {
+      final parts = s.split(', ');
+      final tr = parts.map((x) => _translate(x, depth)).toList();
+      if (tr.any((t) => !parts.contains(t))) return tr.join('، ');
+    }
     return _byPhrases(s);
   }
 
