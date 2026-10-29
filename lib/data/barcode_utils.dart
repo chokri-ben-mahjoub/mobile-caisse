@@ -24,3 +24,27 @@ String? cleanScan(Barcode b) {
   if (retail && !hasValidCheckDigit(v)) return null;
   return v;
 }
+
+/// Number of single-character edits between [a] and [b] (insert, delete, replace).
+int editDistance(String a, String b) {
+  if (a == b) return 0;
+  var prev = List<int>.generate(b.length + 1, (j) => j);
+  for (var i = 1; i <= a.length; i++) {
+    final cur = List<int>.filled(b.length + 1, 0)..[0] = i;
+    for (var j = 1; j <= b.length; j++) {
+      final cost = a.codeUnitAt(i - 1) == b.codeUnitAt(j - 1) ? 0 : 1;
+      cur[j] = [prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost].reduce((x, y) => x < y ? x : y);
+    }
+    prev = cur;
+  }
+  return prev[b.length];
+}
+
+/// True when two barcodes are most likely the same article read differently: same digits
+/// up to leading zeros, a missing / wrong check digit, or one misread digit.
+bool looksLikeSameCode(String a, String b) {
+  String bare(String x) => x.replaceFirst(RegExp(r'^0+'), '');
+  final x = bare(a), y = bare(b);
+  if (x.length < 8 || y.length < 8) return false;
+  return editDistance(x, y) <= 2;
+}

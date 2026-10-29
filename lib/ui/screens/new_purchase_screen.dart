@@ -10,6 +10,7 @@ import '../../logic/purchases_provider.dart';
 import '../../logic/settings_provider.dart';
 import '../theme.dart';
 import '../widgets.dart';
+import '../widgets/product_picker.dart';
 import '../i18n/tr.dart';
 
 enum _Pay { full, partial, credit }
@@ -78,7 +79,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      builder: (_) => _ProductPicker(exclude: {for (final l in _lines) l.product.barcode}),
+      builder: (_) => ProductPicker(exclude: {for (final l in _lines) l.product.barcode}),
     );
     if (picked == null) return;
     setState(() => _lines.add(_Line(picked)));
@@ -342,62 +343,6 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
               child: Text('⚠ Prix de vente (${money(p.price)}) inférieur ou égal au prix d\'achat',
                   style: TextStyle(color: pal.badFg, fontWeight: FontWeight.w800, fontSize: 12)),
             ),
-        ]),
-      ),
-    );
-  }
-}
-
-/// Searchable catalogue to pick the product received.
-class _ProductPicker extends StatefulWidget {
-  const _ProductPicker({required this.exclude});
-  final Set<String> exclude;
-
-  @override
-  State<_ProductPicker> createState() => _ProductPickerState();
-}
-
-class _ProductPickerState extends State<_ProductPicker> {
-  String _q = '';
-
-  @override
-  Widget build(BuildContext context) {
-    final pal = context.pal;
-    final q = _q.trim().toLowerCase();
-    final list = context
-        .watch<ProductsProvider>()
-        .all
-        .where((p) => !widget.exclude.contains(p.barcode) && (q.isEmpty || p.name.toLowerCase().contains(q) || p.barcode.contains(q)))
-        .toList();
-    return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-      child: SizedBox(
-        height: MediaQuery.of(context).size.height * 0.75,
-        child: Column(children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-            child: TextField(
-              autofocus: true,
-              onChanged: (v) => setState(() => _q = v),
-              decoration: InputDecoration(hintText: tr('Nom ou code-barres'), prefixIcon: Icon(Icons.search_rounded)),
-            ),
-          ),
-          Expanded(
-            child: list.isEmpty
-                ? Center(child: Text('Aucun produit', style: TextStyle(color: pal.muted, fontWeight: FontWeight.w700)))
-                : ListView.builder(
-                    itemCount: list.length,
-                    itemBuilder: (_, i) {
-                      final p = list[i];
-                      return ListTile(
-                        title: Text(p.name, style: const TextStyle(fontWeight: FontWeight.w800)),
-                        subtitle: Text('Stock : ${p.tracked ? fmtQty(p.stock!, unit: p.unit) : 'non suivi'}'),
-                        trailing: p.lowStock ? Icon(Icons.warning_amber_rounded, color: pal.badFg) : null,
-                        onTap: () => Navigator.pop(context, p),
-                      );
-                    },
-                  ),
-          ),
         ]),
       ),
     );

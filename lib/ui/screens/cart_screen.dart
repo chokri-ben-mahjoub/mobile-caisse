@@ -18,6 +18,7 @@ import '../theme.dart';
 import '../widgets.dart';
 import '../widgets/quick_keypad.dart';
 import '../widgets/swipe_to_pay.dart';
+import '../widgets/product_picker.dart';
 import 'closing_screen.dart';
 import 'customer_display_screen.dart';
 import 'payment_screen.dart';
@@ -102,13 +103,53 @@ class _CartScreenState extends State<CartScreen> {
     if (!mounted) return;
     if (context.read<SettingsProvider>().settings.scanSound) ScanSound.error();
     _busy = true;
+    // Products whose code looks like this one: the same article read a little differently.
+    final similar = context.read<ProductsProvider>().all.where((p) => looksLikeSameCode(p.barcode, code)).take(3).toList();
+    Product? linked;
     final create = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         icon: const Icon(Icons.help_outline, size: 40),
         title: const Text('Produit inconnu'),
-        content: Text(
-          'Le code-barres $code n\'est pas dans votre base.\n\nVoulez-vous créer ce produit ?',
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Le code-barres $code n\'est pas dans votre base.'),
+              if (similar.isNotEmpty) ...[
+                const SizedBox(height: 14),
+                const Text('Est-ce le même article ?', style: TextStyle(fontWeight: FontWeight.w800)),
+                const SizedBox(height: 6),
+                for (final p in similar)
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    dense: true,
+                    leading: Icon(Icons.link_rounded, color: ctx.pal.accent),
+                    title: Text(p.name, style: const TextStyle(fontWeight: FontWeight.w800)),
+                    subtitle: Text(p.barcode),
+                    onTap: () {
+                      linked = p;
+                      Navigator.pop(ctx, null);
+                    },
+                  ),
+              ],
+              const SizedBox(height: 10),
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(minimumSize: const Size(0, 44)),
+                onPressed: () async {
+                  final p = await pickProduct(ctx);
+                  if (p == null || !ctx.mounted) return;
+                  linked = p;
+                  Navigator.pop(ctx, null);
+                },
+                icon: const Icon(Icons.search_rounded, size: 18),
+                label: const Text('C\'est un article existant'),
+              ),
+              const SizedBox(height: 6),
+              const Text('Sinon, voulez-vous créer ce produit ?'),
+            ],
+          ),
         ),
         actions: [
           TextButton(
@@ -123,6 +164,22 @@ class _CartScreenState extends State<CartScreen> {
         ],
       ),
     );
+    if (linked != null && mounted) {
+      // Remember this code for the article, then ring it up.
+      final p = linked!;
+      await context.read<ProductsProvider>().linkCode(code, p);
+      if (!mounted) return;
+      if (p.byWeight) {
+        _busy = false;
+        await _addWeighed(p);
+      } else {
+        cart.add(p);
+        _announceAdded(p);
+      }
+      _busy = false;
+      _lastAt = DateTime.now();
+      return;
+    }
     if (create == true && mounted) {
       final saved = await Navigator.push<Product>(
         context,

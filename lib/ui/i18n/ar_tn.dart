@@ -4,6 +4,9 @@
 /// Exact French text → Arabic. Longer texts also act as phrases inside bigger texts.
 const Map<String, String> arExact = {
   // ---- navigation & general ----
+  'Est-ce le même article ?': 'هل هي نفس السلعة ؟',
+  'C\'est un article existant': 'هي سلعة موجودة',
+  'Sinon, voulez-vous créer ce produit ?': 'وإلا، تحب تعمل المنتوج هذا ؟',
   'Couleur principale': 'اللون الرئيسي',
   'Bleu': 'أزرق',
   'Violet': 'بنفسجي',
@@ -508,6 +511,7 @@ const Map<String, String> arExact = {
 /// Patterns with `{}` (any text, translated recursively) and `[s]` (optional plural s).
 /// In the Arabic side `{1}`, `{2}`… insert the captures; `{1?one|many}` picks a form by capture 1.
 const Map<String, String> arPatterns = {
+  'Le code-barres {} n\'est pas dans votre base.': 'الباركود {1} موش موجود في قاعدتك.',
   'connecté : {}': 'مُتّصل : {1}',
   '{} kg': '{1} كغ',
   'Caisse, {}': 'الكاسة، {1}',

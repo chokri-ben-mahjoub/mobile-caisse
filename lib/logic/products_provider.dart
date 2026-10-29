@@ -63,6 +63,9 @@ class ProductsProvider extends ChangeNotifier {
     return load();
   }
 
+  /// Links a scanned [code] to an existing product so the next scan finds it.
+  Future<void> linkCode(String code, Product p) => _db.addAlias(code, p.barcode);
+
   Future<void> save(Product p) async {
     await _db.upsertProduct(p);
     await load();

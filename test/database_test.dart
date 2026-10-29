@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
+import 'package:mob_caisse/data/barcode_utils.dart';
 import 'package:mob_caisse/data/credit.dart';
 import 'package:mob_caisse/data/database.dart';
 import 'package:mob_caisse/data/models.dart';
@@ -35,5 +36,32 @@ void main() {
     await db.insertSupplierPayment(SupplierPayment(supplier: 'Délice', amount: 3, date: DateTime(2026, 10, 3)));
     expect((await db.supplierPayments()).single.amount, 3);
     expect(await db.quotes(), isEmpty);
+  });
+
+  // The same article scanned a second time must be recognised, even when the camera reads
+  // the code a little differently (leading zero, missing check digit, linked by the cashier).
+  test('a saved article is found again by variants of its code and by a linked code', () async {
+    final db = await AppDatabase.openAt(inMemoryDatabasePath);
+    await db.upsertProduct(const Product(barcode: '120211800111', name: 'Cahier', price: 2.5));
+    await db.upsertProduct(const Product(barcode: '6191234567890', name: 'Eau', price: 0.8));
+
+    expect((await db.productByBarcode('120211800111'))?.name, 'Cahier');
+    expect((await db.productByBarcode('0120211800111'))?.name, 'Cahier'); // EAN-13 form of a UPC-A
+    expect((await db.productByBarcode('12021180011'))?.name, 'Cahier'); // read without the check digit
+    expect((await db.productByBarcode('1202118001119'))?.name, 'Cahier'); // read with an extra digit
+    expect(await db.productByBarcode('999999999999'), isNull);
+
+    // A code the cashier links to an article ("c'est le même article") is known from then on.
+    expect(await db.productByBarcode('120211800199'), isNull);
+    await db.addAlias('120211800199', '120211800111');
+    expect((await db.productByBarcode('120211800199'))?.name, 'Cahier');
+  });
+
+  test('looks-like-same-code suggestions', () {
+    expect(looksLikeSameCode('120211800111', '120211800112'), isTrue); // one digit differs
+    expect(looksLikeSameCode('120211800111', '0120211800111'), isTrue); // leading zero
+    expect(looksLikeSameCode('120211800111', '6191234567890'), isFalse);
+    expect(looksLikeSameCode('1234', '1235'), isFalse); // too short to guess
+    expect(editDistance('kitten', 'sitting'), 3);
   });
 }

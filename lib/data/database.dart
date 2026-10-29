@@ -44,7 +44,7 @@ class AppDatabase {
 
   static Future<Database> _openAt(String path) => openDatabase(
       path,
-      version: 9,
+      version: 10,
       onConfigure: (db) => db.execute('PRAGMA foreign_keys = ON'),
       onCreate: _create,
       onUpgrade: (db, oldV, _) async {
@@ -80,6 +80,7 @@ class AppDatabase {
         if (oldV < 7) await _createQuotes(db);
         if (oldV < 8) await _createCredits(db);
         if (oldV < 9) await _createPurchases(db);
+        if (oldV < 10) await _createAliases(db);
       },
     );
 
@@ -156,6 +157,7 @@ class AppDatabase {
     await _createQuotes(db);
     await _createCredits(db);
     await _createPurchases(db);
+    await _createAliases(db);
   }
 
   static Future<void> _createQuotes(Database db) => db.execute('CREATE TABLE quotes('
@@ -176,6 +178,15 @@ class AppDatabase {
         'id INTEGER PRIMARY KEY AUTOINCREMENT, supplier TEXT NOT NULL COLLATE NOCASE, '
         "phone TEXT NOT NULL DEFAULT '', amount REAL NOT NULL, date TEXT NOT NULL, note TEXT NOT NULL DEFAULT '')");
   }
+
+  /// Other barcodes (misreads, old labels) that stand for a product.
+  static Future<void> _createAliases(Database db) => db.execute(
+      'CREATE TABLE barcode_aliases(code TEXT PRIMARY KEY, product_barcode TEXT NOT NULL)');
+
+  /// From now on [code] is recognised as the product [productBarcode].
+  Future<void> addAlias(String code, String productBarcode) => _db.insert(
+      'barcode_aliases', {'code': code.trim(), 'product_barcode': productBarcode},
+      conflictAlgorithm: ConflictAlgorithm.replace);
 
   // ---- supplier purchases ----
   /// Saves a goods receipt, adds each line to the product's stock (starting to track it)
@@ -355,6 +366,24 @@ class AppDatabase {
       if (bare.isNotEmpty) {
         rows = await _db.rawQuery(
             "SELECT * FROM products WHERE LTRIM(TRIM(barcode), '0') = ? LIMIT 1", [bare]);
+      }
+    }
+    if (rows.isEmpty) {
+      // A code the cashier already linked to a product ("c'est le même article").
+      rows = await _db.rawQuery(
+          'SELECT p.* FROM products p JOIN barcode_aliases a ON a.product_barcode = p.barcode WHERE a.code = ? LIMIT 1',
+          [code]);
+    }
+    if (rows.isEmpty && code.length >= 8 && RegExp(r'^\d+$').hasMatch(code)) {
+      // Same article read without its check digit (or with an extra one): compare all but the last digit.
+      final bare = code.replaceFirst(RegExp(r'^0+'), '');
+      if (bare.length >= 8) {
+        final body = bare.substring(0, bare.length - 1);
+        rows = await _db.rawQuery(
+            "SELECT * FROM products WHERE LTRIM(TRIM(barcode), '0') = ? OR SUBSTR(LTRIM(TRIM(barcode), '0'), 1, LENGTH(LTRIM(TRIM(barcode), '0')) - 1) = ? LIMIT 2",
+            [body, bare]);
+        // Only trust it when it is unambiguous.
+        if (rows.length != 1) rows = [];
       }
     }
     return rows.isEmpty ? null : Product.fromMap(rows.first);
