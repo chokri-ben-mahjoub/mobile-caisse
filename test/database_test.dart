@@ -64,4 +64,23 @@ void main() {
     expect(looksLikeSameCode('1234', '1235'), isFalse); // too short to guess
     expect(editDistance('kitten', 'sitting'), 3);
   });
+
+  test('a code is confirmed only after identical repeated reads (misreads are filtered out)', () {
+    final c = ScanConsensus();
+    final t = DateTime(2026, 10, 29, 12);
+    Duration ms(int n) => Duration(milliseconds: n);
+
+    // The camera alternates between misreads: nothing is accepted.
+    expect(c.add('120211800111', now: t), isNull);
+    expect(c.add('12021180011', now: t.add(ms(150))), isNull);
+    expect(c.add('120211800112', now: t.add(ms(300))), isNull);
+    // The true code comes back: accepted on its second read.
+    expect(c.add('120211800111', now: t.add(ms(450))), '120211800111');
+    // Votes start from zero after an acceptance.
+    expect(c.add('120211800111', now: t.add(ms(600))), isNull);
+    // Reads too far apart do not add up.
+    expect(c.add('999999999999', now: t.add(ms(2000))), isNull);
+    expect(c.add('999999999999', now: t.add(ms(4000))), isNull);
+    expect(c.add('999999999999', now: t.add(ms(4300))), '999999999999');
+  });
 }

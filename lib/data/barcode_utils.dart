@@ -48,3 +48,35 @@ bool looksLikeSameCode(String a, String b) {
   if (x.length < 8 || y.length < 8) return false;
   return editDistance(x, y) <= 2;
 }
+
+/// Accepts a barcode only once the camera has read the SAME value several times in a row.
+///
+/// A single camera frame can misread a code (one digit off, a missing check digit), and every
+/// misread looks like a new article. Waiting for [need] identical reads within [window] filters
+/// those out: the misreads differ from each other, the true code repeats.
+class ScanConsensus {
+  ScanConsensus({this.need = 2, this.window = const Duration(milliseconds: 1200)});
+  final int need;
+  final Duration window;
+
+  final Map<String, int> _votes = {};
+  DateTime _since = DateTime.fromMillisecondsSinceEpoch(0);
+
+  /// Feeds one read; returns the code when it is confirmed, otherwise null.
+  String? add(String code, {DateTime? now}) {
+    final t = now ?? DateTime.now();
+    if (t.difference(_since) > window) {
+      _votes.clear();
+      _since = t;
+    }
+    final n = (_votes[code] ?? 0) + 1;
+    _votes[code] = n;
+    if (n >= need) {
+      _votes.clear();
+      return code;
+    }
+    return null;
+  }
+
+  void reset() => _votes.clear();
+}

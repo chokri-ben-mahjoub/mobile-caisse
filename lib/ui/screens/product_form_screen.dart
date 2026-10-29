@@ -194,13 +194,23 @@ class _ScanOnceScreen extends StatefulWidget {
 
 class _ScanOnceScreenState extends State<_ScanOnceScreen> {
   bool _done = false;
+  final _consensus = ScanConsensus();
+  final _controller = MobileScannerController(detectionSpeed: DetectionSpeed.normal, detectionTimeoutMs: 120, cameraResolution: const Size(1280, 720));
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(title: const Text('Scanner un code-barres')),
         body: MobileScanner(
+          controller: _controller,
           onDetect: (cap) {
-            final v = cap.barcodes.isEmpty ? null : cleanScan(cap.barcodes.first);
+            final raw = cap.barcodes.isEmpty ? null : cleanScan(cap.barcodes.first);
+            final v = raw == null ? null : _consensus.add(raw);
             if (!_done && v != null) {
               _done = true;
               Navigator.pop(context, v);

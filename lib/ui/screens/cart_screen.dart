@@ -37,8 +37,12 @@ class _CartScreenState extends State<CartScreen> {
   int _mult = 1;
   (String, double)? _last;
   String _q = '';
+  // Every frame is reported (not only new codes) so a code can be confirmed by several identical reads.
+  final _consensus = ScanConsensus();
   final _controller = MobileScannerController(
-    detectionSpeed: DetectionSpeed.noDuplicates,
+    detectionSpeed: DetectionSpeed.normal,
+    detectionTimeoutMs: 120,
+    cameraResolution: const Size(1280, 720), // sharper image = fewer misread digits
     formats: const [
       BarcodeFormat.ean13,
       BarcodeFormat.ean8,
@@ -932,10 +936,12 @@ class _CartScreenState extends State<CartScreen> {
                     MobileScanner(
                       controller: _controller,
                       onDetect: (cap) {
-                        final v = cap.barcodes.isEmpty
-                            ? null
-                            : cleanScan(cap.barcodes.first);
-                        if (v != null) _onCode(v);
+                        if (_busy || cap.barcodes.isEmpty) return;
+                        final v = cleanScan(cap.barcodes.first);
+                        if (v == null) return;
+                        // Ring it up only once the same code has been read twice.
+                        final ok = _consensus.add(v);
+                        if (ok != null) _onCode(ok);
                       },
                       errorBuilder: (context, error) => const ColoredBox(
                         color: Colors.black87,
