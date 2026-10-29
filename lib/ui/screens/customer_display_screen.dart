@@ -9,6 +9,7 @@ import '../../logic/cart_provider.dart';
 import '../../logic/sales_provider.dart';
 import '../../logic/settings_provider.dart';
 import '../i18n/text.dart';
+import '../theme.dart';
 
 /// Customer-facing screen: turn the phone toward the customer and they follow the basket live,
 /// with big letters, the total, and a thank-you with the change after payment.
@@ -71,11 +72,11 @@ class _CustomerDisplayScreenState extends State<CustomerDisplayScreen> {
           child: Scaffold(
             backgroundColor: const Color(0xFF0B1B4D),
             body: Container(
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [Color(0xFF1E3A8A), Color(0xFF0B1B4D)],
+                  colors: [AppAccent.current.deep, Color.lerp(AppAccent.current.deep, Colors.black, 0.6)!],
                 ),
               ),
               child: SafeArea(
@@ -240,7 +241,7 @@ class _Basket extends StatelessWidget {
             duration: const Duration(milliseconds: 300),
             builder: (_, v, _) => FittedBox(
               fit: BoxFit.scaleDown,
-              child: Text(money(v), style: const TextStyle(color: Color(0xFF1E3A8A), fontSize: 58, fontWeight: FontWeight.w900, letterSpacing: -2)),
+              child: Text(money(v), style: TextStyle(color: AppAccent.current.deep, fontSize: 58, fontWeight: FontWeight.w900, letterSpacing: -2)),
             ),
           ),
         ]),

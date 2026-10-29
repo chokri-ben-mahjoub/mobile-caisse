@@ -204,7 +204,7 @@ class _QuoteDetailScreenState extends State<QuoteDetailScreen> {
             decoration: BoxDecoration(
               gradient: kHeroGradient,
               borderRadius: BorderRadius.circular(28),
-              boxShadow: const [BoxShadow(color: Color(0x552563EB), blurRadius: 24, offset: Offset(0, 10))],
+              boxShadow: accentShadow(),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

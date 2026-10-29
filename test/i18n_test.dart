@@ -9,7 +9,8 @@ import 'package:mob_caisse/ui/i18n/date_fmt.dart';
 import 'package:mob_caisse/ui/i18n/text.dart';
 import 'package:mob_caisse/ui/i18n/tr.dart';
 
-String ar(String s) => Tr.t(s, ar: true);
+/// Arabic translation without the invisible left-to-right isolates wrapped around numbers.
+String ar(String s) => Tr.t(s, ar: true).replaceAll(RegExp('[\u2066\u2069]'), '').replaceAll(' ', ' ');
 
 void main() {
   setUpAll(initializeDateFormatting); // the app does this in main()
@@ -54,6 +55,14 @@ void main() {
     expect(ar('Remboursement en espèces'), 'استرجاع كاش');
     expect(ar('7 jours'), '7 أيام');
     expect(ar('Role: Gérant'), contains('مسيّر'));
+  });
+
+  test('numbers with their unit are isolated so "2,200 DT × 3" keeps its order in Arabic', () {
+    final lri = String.fromCharCode(0x2066), pdi = String.fromCharCode(0x2069);
+    expect(Tr.t('2,200 DT × 3', ar: true), '${lri}2,200 DT × 3$pdi');
+    expect(Tr.t('×12', ar: true), '$lri×12$pdi');
+    expect(Tr.t('Doit 12,500 DT', ar: true), 'عليه $lri' '12,500 DT$pdi');
+    expect(Tr.t('2,200 DT × 3', ar: false), '2,200 DT × 3');
   });
 
   test('user data is left alone', () {

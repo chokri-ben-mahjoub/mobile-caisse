@@ -173,7 +173,7 @@ class _HeroCard extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: kHeroGradient,
         borderRadius: BorderRadius.circular(30),
-        boxShadow: const [BoxShadow(color: Color(0x552563EB), blurRadius: 26, offset: Offset(0, 12))],
+        boxShadow: accentShadow(blur: 26, dy: 12),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
@@ -294,7 +294,7 @@ class _QuickActions extends StatelessWidget {
     final auth = context.watch<AuthProvider>();
     void push(Widget w) => Navigator.push(context, MaterialPageRoute(builder: (_) => w));
     final actions = <_Action>[
-      _Action('Caisse', Icons.point_of_sale_rounded, const [Color(0xFF60A5FA), Color(0xFF2563EB)], () => onGo(HomeTarget.cashier)),
+      _Action('Caisse', Icons.point_of_sale_rounded, [AppAccent.current.light, AppAccent.current.main], () => onGo(HomeTarget.cashier)),
       _Action('Devis', Icons.description_rounded, const [Color(0xFFA78BFA), Color(0xFF6D28D9)], () => push(const QuotesScreen())),
       _Action('Crédit', Icons.account_balance_wallet_rounded, const [Color(0xFFFBBF24), Color(0xFFEA580C)], () => push(const CreditsScreen())),
       if (auth.can(Perm.stock))
@@ -484,7 +484,7 @@ class _HoursChart extends StatelessWidget {
                               : LinearGradient(
                                   begin: Alignment.topCenter,
                                   end: Alignment.bottomCenter,
-                                  colors: from + i == peak ? const [Color(0xFF34D673), Color(0xFF12A150)] : const [Color(0xFF60A5FA), Color(0xFF2563EB)],
+                                  colors: from + i == peak ? const [Color(0xFF34D673), Color(0xFF12A150)] : [AppAccent.current.light, AppAccent.current.main],
                                 ),
                           color: vals[i] <= 0 ? pal.soft2 : null,
                         ),
@@ -549,7 +549,7 @@ class _TopProducts extends StatelessWidget {
                         value: v,
                         minHeight: 6,
                         backgroundColor: pal.soft2,
-                        valueColor: const AlwaysStoppedAnimation(kBlue),
+                        valueColor: AlwaysStoppedAnimation(kBlue),
                       ),
                     ),
                   ),

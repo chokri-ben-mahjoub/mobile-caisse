@@ -81,6 +81,7 @@ class _CaisseAppState extends State<CaisseApp> {
   Widget build(BuildContext context) {
     final mode = context.select<SettingsProvider, String>((p) => p.settings.themeMode);
     final lang = context.select<SettingsProvider, String>((p) => p.settings.language);
+    context.select<SettingsProvider, String>((p) => p.settings.accent); // rebuild the theme when the colour changes
     final ar = lang == 'ar';
     return MaterialApp(
       title: 'Caisse POS',

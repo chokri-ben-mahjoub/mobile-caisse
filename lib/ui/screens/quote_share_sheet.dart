@@ -109,7 +109,7 @@ Future<void> showQuoteShareSheet(BuildContext context, QuoteShare share) {
                     icon: Icons.sms_rounded,
                     label: 'SMS',
                     sub: hasPhone ? 'Message au client' : 'Choisir un contact',
-                    colors: const [Color(0xFF60A5FA), Color(0xFF2563EB)],
+                    colors: [AppAccent.current.light, AppAccent.current.main],
                     onTap: () {
                       Navigator.pop(ctx);
                       act(share.sms);

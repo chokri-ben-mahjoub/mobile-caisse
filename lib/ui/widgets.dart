@@ -24,13 +24,7 @@ class TotalBanner extends StatelessWidget {
     decoration: BoxDecoration(
       gradient: kHeroGradient,
       borderRadius: BorderRadius.circular(26),
-      boxShadow: const [
-        BoxShadow(
-          color: Color(0x552563EB),
-          blurRadius: 24,
-          offset: Offset(0, 10),
-        ),
-      ],
+      boxShadow: accentShadow(),
     ),
     child: Row(
       children: [
@@ -117,13 +111,7 @@ class PrimaryButton extends StatelessWidget {
           gradient: kHeroGradient,
           borderRadius: BorderRadius.circular(20),
           boxShadow: enabled
-              ? const [
-                  BoxShadow(
-                    color: Color(0x662563EB),
-                    blurRadius: 18,
-                    offset: Offset(0, 8),
-                  ),
-                ]
+              ? accentShadow(blur: 18, dy: 8, alpha: 0.40)
               : null,
         ),
         child: Material(

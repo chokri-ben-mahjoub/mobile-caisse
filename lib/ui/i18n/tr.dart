@@ -20,7 +20,22 @@ class Tr {
   /// Translates [s] to Tunisian Arabic ([ar] true) or returns it unchanged.
   static String t(String s, {bool? ar}) {
     if (!(ar ?? isAr) || s.isEmpty) return s;
-    return _cache.putIfAbsent(s, () => _translate(s, 0));
+    return _cache.putIfAbsent(s, () => _isolateNumbers(_translate(s, 0)));
+  }
+
+  static final String _lri = String.fromCharCode(0x2066);
+  static final String _pdi = String.fromCharCode(0x2069);
+
+  // "2,200 DT", "2,200 DT × 3", "×3", "12 kg", "15 %": numbers with their unit stay left to right
+  // inside right-to-left text, otherwise "2,200 DT × 3" is shown as "3 × DT 2,200".
+  static final RegExp _numberRun = RegExp(
+    r'(?:×\s?)?[−+-]?\d[\d.,]*(?:\s?(?:DT|kg|كغ|%))?(?:\s?[×x/]\s?[−+-]?\d[\d.,]*(?:\s?(?:DT|kg|كغ|%))?)*',
+  );
+
+  static String _isolateNumbers(String s) {
+    if (s.contains(_lri)) return s; // dates are already isolated
+    // A no-break space keeps "2,200 DT" on one line.
+    return s.replaceAllMapped(_numberRun, (m) => '$_lri${m[0]!.replaceAll(' ', ' ')}$_pdi');
   }
 
   static String _translate(String s, int depth) {

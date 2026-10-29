@@ -321,6 +321,43 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           header('APPARENCE'),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8, left: 4),
+            child: Text('Couleur principale', style: TextStyle(color: context.pal.muted, fontWeight: FontWeight.w800)),
+          ),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              for (final a in AppAccent.all)
+                Semantics(
+                  button: true,
+                  selected: s.accent == a.key,
+                  label: a.label,
+                  child: GestureDetector(
+                    onTap: () => context.read<SettingsProvider>().update(s.copyWith(accent: a.key)),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      width: 52,
+                      height: 52,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: LinearGradient(colors: [a.light, a.main], begin: Alignment.topLeft, end: Alignment.bottomRight),
+                        border: Border.all(color: s.accent == a.key ? context.pal.ink : Colors.transparent, width: 3),
+                        boxShadow: [BoxShadow(color: a.main.withValues(alpha: 0.35), blurRadius: 10, offset: const Offset(0, 4))],
+                      ),
+                      child: s.accent == a.key ? const Icon(Icons.check_rounded, color: Colors.white, size: 26) : null,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Padding(
+            padding: const EdgeInsets.only(left: 4, top: 6),
+            child: Text(AppAccent.byKey(s.accent).label, style: TextStyle(color: context.pal.accent, fontWeight: FontWeight.w800, fontSize: 13)),
+          ),
+          const SizedBox(height: 14),
           SegmentedButton<String>(
             showSelectedIcon: false,
             segments: const [

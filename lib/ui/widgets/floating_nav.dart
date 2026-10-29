@@ -35,7 +35,7 @@ class FloatingNav extends StatelessWidget {
             color: pal.card,
             borderRadius: BorderRadius.circular(30),
             border: Border.all(color: pal.border.withValues(alpha: 0.6)),
-            boxShadow: const [BoxShadow(color: Color(0x261E3A8A), blurRadius: 24, offset: Offset(0, 8))],
+            boxShadow: accentShadow(alpha: 0.15, dy: 8),
           ),
           child: Row(children: [
             for (var i = 0; i < items.length; i++)
@@ -81,7 +81,7 @@ class _NavButton extends StatelessWidget {
           decoration: BoxDecoration(
             gradient: selected ? kHeroGradient : null,
             borderRadius: BorderRadius.circular(24),
-            boxShadow: selected ? const [BoxShadow(color: Color(0x552563EB), blurRadius: 12, offset: Offset(0, 4))] : null,
+            boxShadow: selected ? accentShadow(blur: 12, dy: 4) : null,
           ),
           child: Center(
             child: Row(mainAxisSize: MainAxisSize.min, children: [

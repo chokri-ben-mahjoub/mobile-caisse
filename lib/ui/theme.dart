@@ -1,12 +1,44 @@
 import 'package:flutter/material.dart';
 
-const kBlue = Color(0xFF2563EB);
+/// One selectable main colour of the app: a deep, a main and a light shade.
+@immutable
+class AppAccent {
+  const AppAccent(this.key, this.label, this.deep, this.main, this.light);
+  final String key;
+  final String label;
+  final Color deep;
+  final Color main;
+  final Color light;
 
-const kHeroGradient = LinearGradient(
-  begin: Alignment.topLeft,
-  end: Alignment.bottomRight,
-  colors: [Color(0xFF1E3A8A), Color(0xFF2563EB), Color(0xFF3B82F6)],
-);
+  static const blue = AppAccent('blue', 'Bleu', Color(0xFF1E3A8A), Color(0xFF2563EB), Color(0xFF3B82F6));
+  static const violet = AppAccent('violet', 'Violet', Color(0xFF4C1D95), Color(0xFF7C3AED), Color(0xFF8B5CF6));
+  static const green = AppAccent('green', 'Vert', Color(0xFF065F46), Color(0xFF059669), Color(0xFF10B981));
+  static const orange = AppAccent('orange', 'Orange', Color(0xFF9A3412), Color(0xFFEA580C), Color(0xFFF97316));
+  static const red = AppAccent('red', 'Rouge', Color(0xFF991B1B), Color(0xFFDC2626), Color(0xFFEF4444));
+  static const teal = AppAccent('teal', 'Turquoise', Color(0xFF115E59), Color(0xFF0D9488), Color(0xFF14B8A6));
+  static const pink = AppAccent('pink', 'Rose', Color(0xFF9D174D), Color(0xFFDB2777), Color(0xFFEC4899));
+  static const slate = AppAccent('slate', 'Ardoise', Color(0xFF1E293B), Color(0xFF334155), Color(0xFF475569));
+
+  static const all = [blue, violet, green, orange, red, teal, pink, slate];
+
+  /// Colour in use; set when the settings load or change, read by [kBlue] and [kHeroGradient].
+  static AppAccent current = blue;
+
+  static AppAccent byKey(String key) => all.firstWhere((a) => a.key == key, orElse: () => blue);
+}
+
+/// Main colour of the app (blue by default, see [AppAccent]).
+Color get kBlue => AppAccent.current.main;
+
+LinearGradient get kHeroGradient => LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [AppAccent.current.deep, AppAccent.current.main, AppAccent.current.light],
+    );
+
+/// Soft coloured shadow under accent-coloured surfaces.
+List<BoxShadow> accentShadow({double blur = 24, double dy = 10, double alpha = 0.33}) =>
+    [BoxShadow(color: AppAccent.current.main.withValues(alpha: alpha), blurRadius: blur, offset: Offset(0, dy))];
 
 /// App colours that differ between the light and dark themes.
 @immutable
@@ -81,10 +113,32 @@ extension PaletteX on BuildContext {
   AppPalette get pal => Theme.of(this).extension<AppPalette>()!;
 }
 
+/// The palette tinted with the current accent colour (the blue default keeps the original look).
+AppPalette _tinted(AppPalette base, bool dark) {
+  final a = AppAccent.current;
+  if (a.key == AppAccent.blue.key) return base;
+  Color mix(Color c, Color t, double k) => Color.lerp(c, t, k)!;
+  return AppPalette(
+    bg: mix(base.bg, a.main, dark ? 0.03 : 0.035),
+    card: base.card,
+    ink: base.ink,
+    muted: base.muted,
+    soft: dark ? mix(base.card, a.main, 0.30) : mix(Colors.white, a.main, 0.17),
+    soft2: dark ? mix(base.card, a.main, 0.14) : mix(Colors.white, a.main, 0.07),
+    border: mix(base.border, a.main, dark ? 0.12 : 0.10),
+    accent: dark ? mix(a.light, Colors.white, 0.35) : a.deep,
+    goodBg: base.goodBg,
+    goodFg: base.goodFg,
+    badBg: base.badBg,
+    badFg: base.badFg,
+    shadow: dark ? base.shadow : [BoxShadow(color: a.deep.withValues(alpha: 0.08), blurRadius: 18, offset: const Offset(0, 6))],
+  );
+}
+
 ThemeData buildTheme([Brightness brightness = Brightness.light, bool arabic = false]) {
   final dark = brightness == Brightness.dark;
-  final p = dark ? AppPalette.dark : AppPalette.light;
-  final primary = dark ? const Color(0xFF3B82F6) : kBlue;
+  final p = _tinted(dark ? AppPalette.dark : AppPalette.light, dark);
+  final primary = dark ? AppAccent.current.light : kBlue;
   final scheme = ColorScheme.fromSeed(
     seedColor: kBlue,
     brightness: brightness,

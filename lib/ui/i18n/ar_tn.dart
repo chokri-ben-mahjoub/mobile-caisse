@@ -4,6 +4,15 @@
 /// Exact French text → Arabic. Longer texts also act as phrases inside bigger texts.
 const Map<String, String> arExact = {
   // ---- navigation & general ----
+  'Couleur principale': 'اللون الرئيسي',
+  'Bleu': 'أزرق',
+  'Violet': 'بنفسجي',
+  'Vert': 'أخضر',
+  'Orange': 'برتقالي',
+  'Rouge': 'أحمر',
+  'Turquoise': 'تركوازي',
+  'Rose': 'وردي',
+  'Ardoise': 'رمادي داكن',
   'SCAN': 'المسح',
   'Son du scan': 'صوت المسح',
   'Un bip comme une douchette à chaque article scanné': 'بيب كيما الدوشات مع كل سلعة تتمسح',

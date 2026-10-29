@@ -16,7 +16,6 @@ import '../../logic/settings_provider.dart';
 import '../../data/settings_store.dart';
 import '../theme.dart';
 import '../widgets.dart';
-import '../widgets/daily_goal_card.dart';
 import '../widgets/quick_keypad.dart';
 import '../widgets/swipe_to_pay.dart';
 import 'closing_screen.dart';
@@ -488,6 +487,8 @@ class _CartScreenState extends State<CartScreen> {
     switch (v) {
       case 'code':
         _manualEntry();
+      case 'free':
+        _addFreeArticle();
       case 'clear':
         _confirmClear();
       case 'closing':
@@ -751,12 +752,13 @@ class _CartScreenState extends State<CartScreen> {
     final cart = context.watch<CartProvider>();
     final s = context.watch<SettingsProvider>().settings;
     final auth = context.watch<AuthProvider>();
-    final lines = cart.recentLines;
+    // The newest article is in the big card above; the list holds the others.
+    final lines = cart.recentLines.skip(cart.lastLine == null ? 0 : 1).toList();
 
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 14, 12, 10),
+          padding: const EdgeInsets.fromLTRB(20, 8, 12, 4),
           child: Row(
             children: [
               Expanded(
@@ -830,11 +832,6 @@ class _CartScreenState extends State<CartScreen> {
                 tooltip: tr('Clavier de prix (saisie rapide)'),
                 onPressed: () => QuickKeypad.show(context),
               ),
-              SoftIconButton(
-                icon: Icons.add_shopping_cart_rounded,
-                tooltip: tr('Article libre (sans code-barres)'),
-                onPressed: _addFreeArticle,
-              ),
               Padding(
                 padding: const EdgeInsets.only(left: 8),
                 child: PopupMenuButton<String>(
@@ -842,6 +839,7 @@ class _CartScreenState extends State<CartScreen> {
                   onSelected: _onMenu,
                   itemBuilder: (_) => [
                     const PopupMenuItem(value: 'code', child: Text('Saisir un code-barres')),
+                    const PopupMenuItem(value: 'free', child: Text('Article libre (sans code-barres)')),
                     const PopupMenuItem(value: 'clear', child: Text('Vider le panier')),
                     const PopupMenuItem(value: 'customer', child: Text('Écran client')),
                     if (auth.can(Perm.closing))
@@ -864,11 +862,13 @@ class _CartScreenState extends State<CartScreen> {
         ),
         if (_cameraOn)
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(24),
-              child: SizedBox(
-                height: 224,
+              borderRadius: BorderRadius.circular(22),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 260),
+                curve: Curves.easeOutCubic,
+                height: cart.isEmpty ? 190 : 104,
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
@@ -947,38 +947,23 @@ class _CartScreenState extends State<CartScreen> {
               ),
             ),
           ),
-        const DailyGoalCard(),
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 14, 20, 4),
+          padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Articles scannés',
-                        style: TextStyle(fontWeight: FontWeight.w900, fontSize: 20, letterSpacing: -0.3)),
-                    Text(
-                      cart.discountAmount > 0
-                          ? '${cart.itemCount} article${cart.itemCount > 1 ? 's' : ''} · remise −${s.money(cart.discountAmount)}'
-                          : '${cart.itemCount} article${cart.itemCount > 1 ? 's' : ''}',
-                      style: TextStyle(color: context.pal.muted, fontWeight: FontWeight.w600),
-                    ),
-                  ],
-                ),
+              const Text('Articles scannés',
+                  style: TextStyle(fontWeight: FontWeight.w900, fontSize: 17, letterSpacing: -0.3)),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+                decoration: BoxDecoration(color: context.pal.soft, borderRadius: BorderRadius.circular(20)),
+                child: Text('${cart.itemCount}',
+                    style: TextStyle(color: context.pal.accent, fontWeight: FontWeight.w900, fontSize: 13)),
               ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text('TOTAL À PAYER',
-                      style: TextStyle(
-                          color: context.pal.muted, fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 0.8)),
-                  Text(s.money(cart.total),
-                      style: TextStyle(
-                          color: context.pal.accent, fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: -0.8)),
-                ],
-              ),
+              const Spacer(),
+              if (cart.discountAmount > 0)
+                Text('remise −${s.money(cart.discountAmount)}',
+                    style: TextStyle(color: context.pal.goodFg, fontWeight: FontWeight.w800, fontSize: 13)),
             ],
           ),
         ),
@@ -1029,7 +1014,13 @@ class _CartScreenState extends State<CartScreen> {
               ],
             ),
           ),
-        if (cart.lastLine != null) LastScanCard(line: cart.lastLine!, settings: s),
+        if (cart.lastLine != null)
+          LastScanCard(
+            line: cart.lastLine!,
+            settings: s,
+            cart: cart,
+            onEditWeight: () => _editWeight(cart.lastLine!),
+          ),
         Expanded(
           child: cart.isEmpty
               ? Center(
@@ -1068,7 +1059,7 @@ class _CartScreenState extends State<CartScreen> {
               : ListView.separated(
                   padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
                   itemCount: lines.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: 10),
+                  separatorBuilder: (_, _) => const SizedBox(height: 8),
                   itemBuilder: (_, i) =>
                       _LineCard(
                     line: lines[i],
@@ -1078,39 +1069,34 @@ class _CartScreenState extends State<CartScreen> {
                   ),
                 ),
         ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 6, 16, 12),
+        Container(
+          padding: const EdgeInsets.fromLTRB(18, 10, 14, 10),
+          decoration: BoxDecoration(
+            color: context.pal.card,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.07), blurRadius: 18, offset: const Offset(0, -4))],
+          ),
           child: Row(
             children: [
-              Material(
-                color: context.pal.card,
-                borderRadius: BorderRadius.circular(30),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(30),
-                  onTap: _openCatalog,
-                  child: Container(
-                    width: 60,
-                    height: 60,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(30),
-                      boxShadow: context.pal.shadow,
-                    ),
-                    child: Icon(Icons.grid_view_rounded, color: context.pal.accent, size: 26),
-                  ),
-                ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('TOTAL',
+                      style: TextStyle(color: context.pal.muted, fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 1.2)),
+                  Text(s.money(cart.total),
+                      style: TextStyle(color: context.pal.accent, fontSize: 24, fontWeight: FontWeight.w900, letterSpacing: -0.8)),
+                ],
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 14),
               Expanded(
                 child: SwipeToPay(
-            label: cart.isEmpty ? 'Ajoutez des articles' : 'Glisser pour encaisser',
-            trailing: cart.isEmpty ? null : s.money(cart.total),
-            onConfirm: cart.isEmpty
-                ? null
-                : () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const PaymentScreen()),
-                  ),
-          ),
+                  height: 54,
+                  label: cart.isEmpty ? 'Ajoutez des articles' : 'Glisser pour encaisser',
+                  onConfirm: cart.isEmpty
+                      ? null
+                      : () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PaymentScreen())),
+                ),
               ),
             ],
           ),
@@ -1120,18 +1106,90 @@ class _CartScreenState extends State<CartScreen> {
   }
 }
 
-/// Big, impossible-to-miss card for the article just scanned: name, price, quantity and line total.
-/// It pops and flashes green each time an article is added.
+/// +/- quantity control (for weighed articles: the weight, tap to edit, and a remove button).
+class _QtyControl extends StatelessWidget {
+  const _QtyControl({required this.line, required this.cart, this.onEditWeight, this.onDark = false});
+  final SaleLine line;
+  final CartProvider cart;
+  final VoidCallback? onEditWeight;
+
+  /// White-on-colour variant, used inside the highlighted card.
+  final bool onDark;
+
+  @override
+  Widget build(BuildContext context) {
+    final pal = context.pal;
+    final fg = onDark ? Colors.white : pal.accent;
+    final bg = onDark ? Colors.white.withValues(alpha: 0.18) : pal.soft2;
+    Widget btn(IconData icon, VoidCallback onTap, {bool filled = false}) => Material(
+          color: filled ? (onDark ? Colors.white : kBlue) : (onDark ? Colors.white.withValues(alpha: 0.12) : pal.card),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(11)),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(11),
+            onTap: onTap,
+            child: SizedBox(
+              width: 34,
+              height: 32,
+              child: Icon(icon, size: 20, color: filled ? (onDark ? kBlue : Colors.white) : fg),
+            ),
+          ),
+        );
+
+    if (line.byWeight) {
+      return Row(mainAxisSize: MainAxisSize.min, children: [
+        Material(
+          color: bg,
+          borderRadius: BorderRadius.circular(11),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(11),
+            onTap: onEditWeight,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Icon(Icons.scale_rounded, size: 16, color: fg),
+                const SizedBox(width: 5),
+                Text(fmtQty(line.qty, unit: 'kg'), style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: onDark ? Colors.white : null)),
+              ]),
+            ),
+          ),
+        ),
+        const SizedBox(width: 5),
+        btn(Icons.close_rounded, () => cart.remove(line.barcode)),
+      ]);
+    }
+    return Container(
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(14)),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        btn(Icons.remove_rounded, () => cart.decrement(line.barcode)),
+        SizedBox(
+          width: 30,
+          child: Text(
+            fmtQty(line.qty),
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: onDark ? Colors.white : null),
+          ),
+        ),
+        btn(Icons.add_rounded, () => cart.increment(line.barcode), filled: true),
+      ]),
+    );
+  }
+}
+
+/// The article just scanned, big and impossible to miss: quantity, name, price, line total and
+/// the +/- control. It flashes green each time the article is added.
 class LastScanCard extends StatelessWidget {
-  const LastScanCard({super.key, required this.line, required this.settings});
+  const LastScanCard({super.key, required this.line, required this.settings, this.cart, this.onEditWeight});
   final SaleLine line;
   final AppSettings settings;
+  final CartProvider? cart;
+  final VoidCallback? onEditWeight;
 
   @override
   Widget build(BuildContext context) {
     // A new key on every scan / quantity change replays the entrance animation.
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+      padding: const EdgeInsets.fromLTRB(16, 6, 16, 4),
       child: TweenAnimationBuilder<double>(
         key: ValueKey('${line.barcode}|${line.qty}'),
         tween: Tween(begin: 0, end: 1),
@@ -1140,49 +1198,55 @@ class LastScanCard extends StatelessWidget {
         builder: (context, t, _) {
           final flash = (1 - t).clamp(0.0, 1.0);
           return Transform.scale(
-            scale: 0.94 + 0.06 * t,
+            scale: 0.95 + 0.05 * t,
             child: Container(
               width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    Color.lerp(const Color(0xFF1E3A8A), const Color(0xFF16A34A), flash)!,
-                    Color.lerp(const Color(0xFF2563EB), const Color(0xFF34D673), flash)!,
+                    Color.lerp(AppAccent.current.deep, const Color(0xFF16A34A), flash)!,
+                    Color.lerp(AppAccent.current.main, const Color(0xFF34D673), flash)!,
                   ],
                 ),
                 borderRadius: BorderRadius.circular(22),
-                boxShadow: const [BoxShadow(color: Color(0x4D2563EB), blurRadius: 18, offset: Offset(0, 8))],
+                boxShadow: accentShadow(blur: 16, dy: 6, alpha: 0.30),
               ),
               child: Row(
                 children: [
                   Container(
-                    width: 54,
-                    height: 54,
+                    width: 52,
+                    height: 52,
                     decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.18), borderRadius: BorderRadius.circular(16)),
                     alignment: Alignment.center,
-                    child: Text(
-                      '×${fmtQty(line.qty)}',
-                      style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900),
+                    child: FittedBox(
+                      child: Padding(
+                        padding: const EdgeInsets.all(5),
+                        child: Text(
+                          '×${fmtQty(line.qty)}',
+                          style: const TextStyle(color: Colors.white, fontSize: 21, fontWeight: FontWeight.w900),
+                        ),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
                           line.name,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(color: Colors.white, fontSize: 21, fontWeight: FontWeight.w900, height: 1.1),
+                          style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900, height: 1.1),
                         ),
-                        const SizedBox(height: 2),
+                        const SizedBox(height: 3),
                         Text(
                           '${settings.money(line.price)}${line.byWeight ? '/kg' : ''}',
-                          style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 15, fontWeight: FontWeight.w700),
+                          style: TextStyle(color: Colors.white.withValues(alpha: 0.82), fontSize: 14, fontWeight: FontWeight.w700),
                         ),
                       ],
                     ),
@@ -1190,13 +1254,16 @@ class LastScanCard extends StatelessWidget {
                   const SizedBox(width: 8),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.check_circle_rounded, color: Colors.white.withValues(alpha: 0.9), size: 20),
-                      const SizedBox(height: 2),
                       Text(
                         settings.money(line.total),
-                        style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900, letterSpacing: -0.5),
+                        style: const TextStyle(color: Colors.white, fontSize: 21, fontWeight: FontWeight.w900, letterSpacing: -0.5),
                       ),
+                      if (cart != null) ...[
+                        const SizedBox(height: 6),
+                        _QtyControl(line: line, cart: cart!, onEditWeight: onEditWeight, onDark: true),
+                      ],
                     ],
                   ),
                 ],
@@ -1209,6 +1276,7 @@ class LastScanCard extends StatelessWidget {
   }
 }
 
+/// One article of the basket, compact so more of them fit on screen.
 class _LineCard extends StatelessWidget {
   const _LineCard({
     required this.line,
@@ -1223,149 +1291,45 @@ class _LineCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Widget step(IconData icon, VoidCallback onTap, {bool filled = false}) =>
-        Material(
-          color: filled ? kBlue : context.pal.card,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(12),
-            onTap: onTap,
-            child: SizedBox(
-              width: 42,
-              height: 42,
-              child: Icon(
-                icon,
-                color: filled ? Colors.white : context.pal.accent,
-                size: 22,
-              ),
-            ),
-          ),
-        );
-
-    final weightPill = Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Material(
-          color: context.pal.soft2,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(14),
-            onTap: onEditWeight,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.scale_rounded, size: 18, color: context.pal.accent),
-                  const SizedBox(width: 6),
-                  Text(
-                    fmtQty(line.qty, unit: 'kg'),
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 6),
-        step(Icons.close_rounded, () => cart.remove(line.barcode)),
-      ],
-    );
-
+    final pal = context.pal;
     return Container(
-      padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
-      decoration: BoxDecoration(
-        color: context.pal.card,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: context.pal.shadow,
-      ),
+      padding: const EdgeInsets.fromLTRB(10, 8, 8, 8),
+      decoration: BoxDecoration(color: pal.card, borderRadius: BorderRadius.circular(18), boxShadow: pal.shadow),
       child: Row(
         children: [
           Container(
-            width: 44,
-            height: 44,
+            width: 36,
+            height: 36,
             alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: context.pal.soft,
-              borderRadius: BorderRadius.circular(14),
-            ),
+            decoration: BoxDecoration(color: pal.soft, borderRadius: BorderRadius.circular(12)),
             child: Text(
-              line.name.isEmpty
-                  ? '?'
-                  : line.name.characters.first.toUpperCase(),
-              style: TextStyle(
-                color: context.pal.accent,
-                fontSize: 20,
-                fontWeight: FontWeight.w900,
-              ),
+              line.name.isEmpty ? '?' : line.name.characters.first.toUpperCase(),
+              style: TextStyle(color: pal.accent, fontSize: 17, fontWeight: FontWeight.w900),
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  line.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
+                Text(line.name, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, height: 1.15)),
                 const SizedBox(height: 2),
                 Text(
                   '${settings.money(line.price)}${line.byWeight ? '/kg' : ''} × ${fmtQty(line.qty, unit: line.unit)}',
-                  style: TextStyle(
-                    color: context.pal.muted,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  settings.money(line.total),
-                  style: TextStyle(
-                    color: context.pal.accent,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w900,
-                  ),
+                  style: TextStyle(color: pal.muted, fontWeight: FontWeight.w600, fontSize: 12.5),
                 ),
               ],
             ),
           ),
-          line.byWeight
-              ? weightPill
-              : Container(
-            padding: const EdgeInsets.all(4),
-            decoration: BoxDecoration(
-              color: context.pal.soft2,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                step(Icons.remove_rounded, () => cart.decrement(line.barcode)),
-                SizedBox(
-                  width: 36,
-                  child: Text(
-                    fmtQty(line.qty),
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 19,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ),
-                step(
-                  Icons.add_rounded,
-                  () => cart.increment(line.barcode),
-                  filled: true,
-                ),
-              ],
-            ),
+          const SizedBox(width: 8),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(settings.money(line.total), style: TextStyle(color: pal.accent, fontSize: 15, fontWeight: FontWeight.w900)),
+              const SizedBox(height: 4),
+              _QtyControl(line: line, cart: cart, onEditWeight: onEditWeight),
+            ],
           ),
         ],
       ),

@@ -21,6 +21,9 @@ class AppSettings {
   /// Beep when an article is scanned.
   final bool scanSound;
 
+  /// Main colour of the app, a key of [AppAccent] (`blue` by default).
+  final String accent;
+
   const AppSettings({
     this.storeName = 'Ma boutique',
     this.currency = 'DT',
@@ -32,6 +35,7 @@ class AppSettings {
     this.themeMode = 'system',
     this.language = 'fr',
     this.scanSound = true,
+    this.accent = 'blue',
   });
 
   AppSettings copyWith({
@@ -45,6 +49,7 @@ class AppSettings {
     String? themeMode,
     String? language,
     bool? scanSound,
+    String? accent,
   }) =>
       AppSettings(
         storeName: storeName ?? this.storeName,
@@ -57,6 +62,7 @@ class AppSettings {
         themeMode: themeMode ?? this.themeMode,
         language: language ?? this.language,
         scanSound: scanSound ?? this.scanSound,
+        accent: accent ?? this.accent,
       );
 
   /// Evening dark mode runs from this hour (inclusive) to [autoDarkEnd] (exclusive) the next morning.
@@ -93,6 +99,7 @@ class SettingsStore {
       themeMode: sp.getString('themeMode') ?? d.themeMode,
       language: sp.getString('language') ?? d.language,
       scanSound: sp.getBool('scanSound') ?? d.scanSound,
+      accent: sp.getString('accent') ?? d.accent,
     );
   }
 
@@ -126,5 +133,6 @@ class SettingsStore {
     await sp.setString('themeMode', s.themeMode);
     await sp.setString('language', s.language);
     await sp.setBool('scanSound', s.scanSound);
+    await sp.setString('accent', s.accent);
   }
 }
